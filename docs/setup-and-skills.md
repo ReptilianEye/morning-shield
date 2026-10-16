@@ -40,6 +40,14 @@ npm_config_min_release_age=0 npx -y skills add callstackincubator/agent-skills \
 
 *(Removed 26 out-of-scope skills: `eas-*`, `expo-app-clip`, `expo-brownfield`, `expo-data-fetching`, `expo-dom`, `expo-examples`, `expo-migrate-module`, `expo-skill-*`, `expo-upgrade`, `expo-web-to-native`, `assess-react-native-migration`, `create-react-native-library`, `github-actions`, `react-native-brownfield-migration`, `react-native-tv-best-practices`, `react-navigation`, `upgrading-react-native`, `validate-skills`, `writing-user-docs`.)*
 
+### 1.5. Software Mansion Argent (`@swmansion/argent`)
+**Argent** is installed locally as a `devDependency` with MCP server configurations (`.mcp.json`, `.cursor/`, `.gemini/`, `.claude/`, `.vscode/`), skills (`argent-*`), and agent rules for controlling, debugging, and profiling iOS Simulators and Android Emulators directly from the AI assistant:
+
+```bash
+# Re-initialize or update Argent in local devDependency mode
+npm_config_min_release_age=0 npx -y @swmansion/argent@latest init --local -y
+```
+
 ---
 
 ## 2. Installed Libraries

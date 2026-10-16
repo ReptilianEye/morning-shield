@@ -57,3 +57,19 @@ A log of technical gotchas, environment quirks, and architectural decisions enco
 - **Root Cause:** Google removed the obsolete `tools` package from the Android SDK repository, which `android-actions/setup-android@v3` attempts to install by default.
 - **Fix:** Removed `android-actions/setup-android@v3`. GitHub's `ubuntu-latest` runner already pre-installs the Android SDK at `$ANDROID_HOME`; accepting licenses via `yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses` allows Gradle to auto-provision the exact SDK/NDK versions required by the build. Also upgraded `actions/checkout`, `actions/setup-node`, and `actions/setup-java` from `@v4` to `@v5` to eliminate Node 20 deprecation warnings.
 
+---
+
+## 8. Regenerating Expo Router Typed Routes (`.expo/types/router.d.ts`) Before `tsc`
+- **Symptom:** Adding or removing route files in `src/app/` and running bare `tsc --noEmit` fails with `TS2322` when `.expo/types/router.d.ts` has stale route declarations (or on fresh CI checkouts where `expo-env.d.ts` and `.expo/types/` are gitignored).
+- **Fix:** Use Expo's built-in `expo customize tsconfig.json && tsc --noEmit` in `npm run typecheck`, which automatically generates both `expo-env.d.ts` and `.expo/types/router.d.ts` before running TypeScript.
+
+---
+
+## 9. iOS 27 SDK `UIScene` Life Cycle Requirement & Upgrading to Expo SDK 58
+- **Symptom:** Running `npm run ios` on Xcode 27 (iOS 27 SDK) originally aborted at launch with:
+  `Application failed to launch: UIScene life cycle is required for apps built with this SDK.`
+- **Root Cause:** Because the global `~/.npmrc` had `min-release-age = 14`, running `create-expo-app@latest` silently fell back to Expo SDK 57 (`expo-template-bare-minimum@57.0.32`), whose native iOS template predated the `UIScene` life cycle requirement.
+- **Clean Fix:**
+  1. Added a project-level `.npmrc` with `min-release-age=0`.
+  2. Upgraded the project to **Expo SDK 58 (`~58.0.12`, React Native `0.88.0`)**, where `npx expo prebuild` natively generates `SceneDelegate.swift`, `AppDelegate.swift` (`ExpoReactNativeFactoryProvider`), and `UIApplicationSceneManifest` in `Info.plist` out of the box—keeping `app.config.ts` 100% clean with zero custom config plugins.
+

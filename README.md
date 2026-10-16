@@ -103,13 +103,12 @@ npm run doctor      # npx -y expo-doctor
 ```
 
 ### GitHub Actions CI Pipeline (`.github/workflows/ci.yml`)
-Our CI workflow follows state-of-the-art React Native / Callstack & Expo practices:
-1. **`quality` (Fast Gate):** Validates `app.config.ts`, runs `tsc --noEmit`, `expo lint`, and `expo-doctor`.
-2. **`bundle-and-prebuild`:** Verifies Continuous Native Generation (`npx expo prebuild --no-install --clean`) and exports production Metro JS bundles for both Android and iOS.
-3. **`android-build`:** Compiles a native Android Debug APK using `gradle/actions/setup-gradle@v4` caching and single-ABI (`-PreactNativeArchitectures=arm64-v8a`) C++/CMake compilation for ~75% faster CI builds, uploading `morning-shield-debug-apk` as a workflow artifact.
+Our CI workflow runs two fast verification jobs:
+1. **`quality` (Fast Gate):** Validates `app.config.ts`, runs `npm run typecheck` (`expo customize tsconfig.json && tsc --noEmit`), `npm run lint` (`expo lint`), and `npm run doctor` (`expo-doctor`).
+2. **`bundle-and-prebuild`:** Verifies Continuous Native Generation (`npx expo prebuild --no-install --clean`) and exports production Metro JS bundles (`npx expo export`) for both Android and iOS.
 
 ### GitHub CLI (`gh`) Commands
-Use the GitHub CLI to trigger, monitor, and download build artifacts directly from the terminal:
+Use the GitHub CLI to trigger and monitor CI runs directly from the terminal:
 
 ```bash
 # Trigger the CI workflow manually on the current branch
@@ -121,9 +120,6 @@ gh run watch
 
 # View logs for any failed steps in the latest run
 gh run view --log-failed
-
-# Download the compiled Android Debug APK artifact from the latest successful run
-gh run download --name morning-shield-debug-apk --dir ./build-artifacts
 ```
 
 ---
