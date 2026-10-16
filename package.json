@@ -37,6 +37,7 @@
     "zustand": "^5.0.15"
   },
   "devDependencies": {
+    "@swmansion/argent": "^0.29.0",
     "@types/matter-js": "^0.20.2",
     "@types/react": "~19.2.2",
     "eslint": "^9.39.5",
