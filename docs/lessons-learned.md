@@ -49,3 +49,11 @@ A log of technical gotchas, environment quirks, and architectural decisions enco
   - Create `expo-env.d.ts` and `eslint.config.js` directly instead of triggering interactive setup wizards.
   - Always pass `-y` to `npx -y expo-doctor` so it never blocks on package installation prompts.
 
+---
+
+## 7. GitHub Actions `android-actions/setup-android@v3` Failing on `sdkmanager tools`
+- **Symptom:** The `Android Debug APK Build` job failed during `Setup Android SDK` with:
+  `Warning: Failed to find package 'tools'` / `Error: The process '/usr/local/lib/android/sdk/cmdline-tools/16.0/bin/sdkmanager' failed with exit code 1`.
+- **Root Cause:** Google removed the obsolete `tools` package from the Android SDK repository, which `android-actions/setup-android@v3` attempts to install by default.
+- **Fix:** Removed `android-actions/setup-android@v3`. GitHub's `ubuntu-latest` runner already pre-installs the Android SDK at `$ANDROID_HOME`; accepting licenses via `yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses` allows Gradle to auto-provision the exact SDK/NDK versions required by the build. Also upgraded `actions/checkout`, `actions/setup-node`, and `actions/setup-java` from `@v4` to `@v5` to eliminate Node 20 deprecation warnings.
+
