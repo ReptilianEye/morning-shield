@@ -65,9 +65,11 @@ A log of technical gotchas, environment quirks, and architectural decisions enco
 
 ---
 
-## 9. iOS 27 SDK `UIScene` Life Cycle Requirement (`_UIApplicationEvaluateRuntimeIssueForNoSceneLifecycleAdoption`)
-- **Symptom:** Running `npm run ios` builds the app, but UIKit aborts on launch with:
+## 9. iOS 27 SDK `UIScene` Life Cycle Requirement & Upgrading to Expo SDK 58
+- **Symptom:** Running `npm run ios` on Xcode 27 (iOS 27 SDK) originally aborted at launch with:
   `Application failed to launch: UIScene life cycle is required for apps built with this SDK.`
-- **Root Cause:** Building with the iOS 27 SDK (Xcode 27+) enforces the UIKit `UIScene` life cycle at launch. While `expo@57.0.30` includes `ExpoAppSceneDelegate` (`@objc(EXExpoAppSceneDelegate)`) and `ExpoReactNativeFactoryProvider`, `expo-template-bare-minimum@57.0.32` still generates a legacy `AppDelegate.swift` without a `UIApplicationSceneManifest`.
-- **Fix:** Configured `UIApplicationSceneManifest` (`UISceneDelegateClassName: 'EXExpoAppSceneDelegate'`) in `ios.infoPlist` and added a `withAppDelegate` config plugin (`withIosSceneLifecycle`) in `app.config.ts` so `AppDelegate` conforms to `ExpoReactNativeFactoryProvider` and delegates window creation to `EXExpoAppSceneDelegate`.
+- **Root Cause:** Because the global `~/.npmrc` had `min-release-age = 14`, running `create-expo-app@latest` silently fell back to Expo SDK 57 (`expo-template-bare-minimum@57.0.32`), whose native iOS template predated the `UIScene` life cycle requirement.
+- **Clean Fix:**
+  1. Added a project-level `.npmrc` with `min-release-age=0`.
+  2. Upgraded the project to **Expo SDK 58 (`~58.0.12`, React Native `0.88.0`)**, where `npx expo prebuild` natively generates `SceneDelegate.swift`, `AppDelegate.swift` (`ExpoReactNativeFactoryProvider`), and `UIApplicationSceneManifest` in `Info.plist` out of the box—keeping `app.config.ts` 100% clean with zero custom config plugins.
 

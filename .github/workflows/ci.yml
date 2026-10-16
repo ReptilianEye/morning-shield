@@ -38,9 +38,6 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Ensure Skia prebuilt libraries & Expo env types are installed
-        run: npm run postinstall
-
       - name: Validate Expo configuration
         run: npx expo config --type public
 
@@ -73,9 +70,6 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
-
-      - name: Ensure Skia prebuilt libraries & Expo env types are installed
-        run: npm run postinstall
 
       - name: Verify Continuous Native Generation (Prebuild Android & iOS)
         run: npx expo prebuild --no-install --clean
@@ -117,9 +111,6 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
-
-      - name: Ensure Skia prebuilt libraries & Expo env types are installed
-        run: npm run postinstall
 
       - name: Prebuild Android native project
         run: npx expo prebuild --platform android --clean
