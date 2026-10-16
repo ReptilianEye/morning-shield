@@ -1,0 +1,137 @@
+name: MorningShield CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+  workflow_dispatch:
+
+# Cancel redundant in-progress runs on the same branch/PR
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: '22'
+  JAVA_VERSION: '17'
+  EXPO_NO_TELEMETRY: '1'
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # 1. Fast Quality Gate: TypeScript, ESLint, Expo Config & Expo Doctor
+  # ---------------------------------------------------------------------------
+  quality:
+    name: Lint, Typecheck & Doctor
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Ensure Skia prebuilt libraries are installed
+        run: npm run postinstall
+
+      - name: Validate Expo configuration
+        run: npx expo config --type public
+
+      - name: Run TypeScript typecheck
+        run: npm run typecheck
+
+      - name: Run ESLint
+        run: npm run lint
+
+      - name: Run Expo Doctor
+        run: npm run doctor
+
+  # ---------------------------------------------------------------------------
+  # 2. Bundle & Prebuild Verification (Android + iOS CNG & Metro Bundle)
+  # ---------------------------------------------------------------------------
+  bundle-and-prebuild:
+    name: Metro Bundle & Native Prebuild
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Ensure Skia prebuilt libraries are installed
+        run: npm run postinstall
+
+      - name: Verify Continuous Native Generation (Prebuild Android & iOS)
+        run: npx expo prebuild --no-install --clean
+
+      - name: Export Metro JS Bundles (Android & iOS)
+        run: npx expo export --platform android --platform ios --output-dir dist
+
+  # ---------------------------------------------------------------------------
+  # 3. Native Android Debug Build (Gradle Cache + Single-ABI SOTA Optimization)
+  # ---------------------------------------------------------------------------
+  android-build:
+    name: Android Debug APK Build
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Setup Java ${{ env.JAVA_VERSION }}
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: ${{ env.JAVA_VERSION }}
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Setup Gradle with build caching
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          cache-read-only: ${{ github.ref != 'refs/heads/main' && github.ref != 'refs/heads/master' }}
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Ensure Skia prebuilt libraries are installed
+        run: npm run postinstall
+
+      - name: Prebuild Android native project
+        run: npx expo prebuild --platform android --clean
+
+      - name: Build Android Debug APK (arm64-v8a only for fast CI)
+        working-directory: android
+        run: ./gradlew assembleDebug -PreactNativeArchitectures=arm64-v8a --no-daemon
+
+      - name: Upload Debug APK Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: morning-shield-debug-apk
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+          retention-days: 14
+
