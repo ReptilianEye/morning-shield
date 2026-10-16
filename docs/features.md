@@ -4,11 +4,12 @@ This document tracks the core features of **MorningShield**, their technical des
 
 ## Implementation Status
 
-- [x] **Task 1: Bootstrap & Config** — Dependencies installed, `app.config.ts` validated for Expo SDK 57, TypeScript & ESLint configured.
+- [x] **Task 1: Bootstrap & Config** — Dependencies installed, `app.config.ts` validated for Expo SDK 57, TypeScript, ESLint, and GitHub Actions CI configured.
+- [x] **Task 1.5: Navigation & Placeholder Screens (`feat/navigation-placeholders`)** — Landing screen (`/`), modal Settings dialog (`/settings`), and fullscreen Riddle placeholder screens (`/riddle/ice-cat`, `/riddle/gyro-maze`).
 - [ ] **Task 2: State Management (`src/store/useMorningStore.ts`)** — Zustand + MMKV store with safe in-memory fallback.
 - [ ] **Task 3: Riddle 1 — Ice Cat (`src/app/riddle/ice-cat.tsx`)** — Accelerometer shake detector (`> 2.2g`) + `Gesture.Tap()` weak spots + Skia procedural crack/frost overlay.
 - [ ] **Task 4: Riddle 2 — Gyro Maze (`src/app/riddle/gyro-maze.tsx`)** — `matter-js` 2D physics world driven by `useTiltGravity` at 60 FPS, rendered on Skia canvas.
-- [ ] **Task 5: Navigation Guard & Dashboard (`src/app/_layout.tsx` & `src/app/(tabs)/`)** — Automatic redirect when `isMorningLocked()` is active, Android back-button blocker, wake-window settings, and on-demand riddle test buttons.
+- [ ] **Task 5: Navigation Guard & Dashboard (`src/app/_layout.tsx` & `src/app/index.tsx`)** — Automatic redirect when `isMorningLocked()` is active, Android back-button blocker, wake-window settings, and on-demand riddle test buttons.
 
 ---
 

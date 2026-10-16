@@ -57,3 +57,9 @@ A log of technical gotchas, environment quirks, and architectural decisions enco
 - **Root Cause:** Google removed the obsolete `tools` package from the Android SDK repository, which `android-actions/setup-android@v3` attempts to install by default.
 - **Fix:** Removed `android-actions/setup-android@v3`. GitHub's `ubuntu-latest` runner already pre-installs the Android SDK at `$ANDROID_HOME`; accepting licenses via `yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses` allows Gradle to auto-provision the exact SDK/NDK versions required by the build. Also upgraded `actions/checkout`, `actions/setup-node`, and `actions/setup-java` from `@v4` to `@v5` to eliminate Node 20 deprecation warnings.
 
+---
+
+## 8. Regenerating Expo Router Typed Routes (`.expo/types/router.d.ts`) Non-Interactively
+- **Symptom:** Adding new route files (`src/app/settings.tsx`, `src/app/riddle/ice-cat.tsx`, `src/app/riddle/gyro-maze.tsx`) and running `tsc --noEmit` before starting Metro fails with `TS2322: Type '"/riddle/ice-cat"' is not assignable to type 'Href'` because `.expo/types/router.d.ts` still holds stale route declarations. Meanwhile, `npx expo customize tsconfig.json` starts a Metro file watcher and hangs in CLI/CI.
+- **Fix:** Updated `npm run typecheck` in `package.json` to invoke `@expo/cli`'s `setupTypedRoutes()` directly against `src/app/` before running `tsc --noEmit`, regenerating `.expo/types/router.d.ts` non-interactively in `<100ms`.
+
