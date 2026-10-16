@@ -63,3 +63,11 @@ A log of technical gotchas, environment quirks, and architectural decisions enco
 - **Symptom:** Adding or removing route files in `src/app/` and running bare `tsc --noEmit` fails with `TS2322` when `.expo/types/router.d.ts` has stale route declarations (or on fresh CI checkouts where `expo-env.d.ts` and `.expo/types/` are gitignored).
 - **Fix:** Use Expo's built-in `expo customize tsconfig.json && tsc --noEmit` in `npm run typecheck`, which automatically generates both `expo-env.d.ts` and `.expo/types/router.d.ts` before running TypeScript.
 
+---
+
+## 9. iOS 27 SDK `UIScene` Life Cycle Requirement (`_UIApplicationEvaluateRuntimeIssueForNoSceneLifecycleAdoption`)
+- **Symptom:** Running `npm run ios` builds the app, but UIKit aborts on launch with:
+  `Application failed to launch: UIScene life cycle is required for apps built with this SDK.`
+- **Root Cause:** Building with the iOS 27 SDK (Xcode 27+) enforces the UIKit `UIScene` life cycle at launch. While `expo@57.0.30` includes `ExpoAppSceneDelegate` (`@objc(EXExpoAppSceneDelegate)`) and `ExpoReactNativeFactoryProvider`, `expo-template-bare-minimum@57.0.32` still generates a legacy `AppDelegate.swift` without a `UIApplicationSceneManifest`.
+- **Fix:** Configured `UIApplicationSceneManifest` (`UISceneDelegateClassName: 'EXExpoAppSceneDelegate'`) in `ios.infoPlist` and added a `withAppDelegate` config plugin (`withIosSceneLifecycle`) in `app.config.ts` so `AppDelegate` conforms to `ExpoReactNativeFactoryProvider` and delegates window creation to `EXExpoAppSceneDelegate`.
+
