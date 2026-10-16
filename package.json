@@ -50,11 +50,11 @@
     "ios": "expo run:ios",
     "web": "expo start --web",
     "lint": "expo lint",
-    "typecheck": "node -e \"const fs=require('fs'),path=require('path');fs.mkdirSync('.expo/types',{recursive:true});require('./node_modules/expo/node_modules/@expo/cli/build/src/start/server/type-generation/routes').setupTypedRoutes({typesDirectory:path.resolve('.expo/types'),projectRoot:process.cwd(),routerDirectory:path.resolve('src/app')});\" && tsc --noEmit",
+    "typecheck": "expo customize tsconfig.json && tsc --noEmit",
     "doctor": "npx -y expo-doctor",
     "check": "npm run typecheck && npm run lint",
     "prebuild": "expo prebuild",
-    "postinstall": "node node_modules/@shopify/react-native-skia/scripts/install-libs.js && node -e \"const fs=require('fs');if(!fs.existsSync('expo-env.d.ts'))fs.writeFileSync('expo-env.d.ts','/// <reference types=\\\"expo/types\\\" />\\n');\""
+    "postinstall": "node node_modules/@shopify/react-native-skia/scripts/install-libs.js"
   },
   "private": true
 }

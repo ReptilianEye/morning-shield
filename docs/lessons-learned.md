@@ -59,7 +59,7 @@ A log of technical gotchas, environment quirks, and architectural decisions enco
 
 ---
 
-## 8. Regenerating Expo Router Typed Routes (`.expo/types/router.d.ts`) Non-Interactively
-- **Symptom:** Adding new route files (`src/app/settings.tsx`, `src/app/riddle/ice-cat.tsx`, `src/app/riddle/gyro-maze.tsx`) and running `tsc --noEmit` before starting Metro fails with `TS2322: Type '"/riddle/ice-cat"' is not assignable to type 'Href'` because `.expo/types/router.d.ts` still holds stale route declarations. Meanwhile, `npx expo customize tsconfig.json` starts a Metro file watcher and hangs in CLI/CI.
-- **Fix:** Updated `npm run typecheck` in `package.json` to invoke `@expo/cli`'s `setupTypedRoutes()` directly against `src/app/` before running `tsc --noEmit`, regenerating `.expo/types/router.d.ts` non-interactively in `<100ms`.
+## 8. Regenerating Expo Router Typed Routes (`.expo/types/router.d.ts`) Before `tsc`
+- **Symptom:** Adding or removing route files in `src/app/` and running bare `tsc --noEmit` fails with `TS2322` when `.expo/types/router.d.ts` has stale route declarations (or on fresh CI checkouts where `expo-env.d.ts` and `.expo/types/` are gitignored).
+- **Fix:** Use Expo's built-in `expo customize tsconfig.json && tsc --noEmit` in `npm run typecheck`, which automatically generates both `expo-env.d.ts` and `.expo/types/router.d.ts` before running TypeScript.
 
