@@ -3,26 +3,21 @@ import { Platform, StyleSheet, Text, type TextProps } from 'react-native';
 import { Fonts, ThemeColor } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 
+export type TextType = 'default' | 'title' | 'small' | 'bigger' | 'smallBold' | 'subtitle' | 'link' | 'linkPrimary' | 'code';
+
 export type ThemedTextProps = TextProps & {
-  type?: 'default' | 'title' | 'small' | 'smallBold' | 'subtitle' | 'link' | 'linkPrimary' | 'code';
+  type?: TextType;
   themeColor?: ThemeColor;
 };
 
-export function ThemedText({ style, type = 'default', themeColor, ...rest }: ThemedTextProps) {
+export function ThemedText({ style, type = 'default', themeColor = 'text', ...rest }: ThemedTextProps) {
   const theme = useTheme();
 
   return (
     <Text
       style={[
-        { color: theme[themeColor ?? 'text'] },
-        type === 'default' && styles.default,
-        type === 'title' && styles.title,
-        type === 'small' && styles.small,
-        type === 'smallBold' && styles.smallBold,
-        type === 'subtitle' && styles.subtitle,
-        type === 'link' && styles.link,
-        type === 'linkPrimary' && styles.linkPrimary,
-        type === 'code' && styles.code,
+        { color: theme[themeColor] },
+        styles[type],
         style,
       ]}
       {...rest}
@@ -43,6 +38,11 @@ const styles = StyleSheet.create({
   },
   default: {
     fontSize: 16,
+    lineHeight: 24,
+    fontWeight: 500,
+  },
+  bigger: {
+    fontSize: 20,
     lineHeight: 24,
     fontWeight: 500,
   },
