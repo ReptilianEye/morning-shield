@@ -26,12 +26,61 @@ function randomFromInterval(min: number, max: number): number {
   return Math.random() * (max - min) + min;
 }
 
+const hexToRgb = (hex: string) => {
+  const cleanHex = hex.replace('#', '');
+  const num = parseInt(cleanHex, 16);
+  return {
+    r: (num >> 16) & 255,
+    g: (num >> 8) & 255,
+    b: num & 255,
+  };
+};
+
+const hslStringToRgb = (hslStr: string) => {
+  const matches = hslStr.match(/[\d.]+/g);
+  if (!matches || matches.length < 3) return { r: 0, g: 0, b: 0 };
+
+  let h = parseFloat(matches[0]);
+  let s = parseFloat(matches[1]) / 100;
+  let l = parseFloat(matches[2]) / 100;
+
+  const k = (n: number) => (n + h / 30) % 12;
+  const a = s * Math.min(l, 1 - l);
+  const f = (n: number) =>
+    l - a * Math.max(-1, Math.min(k(n) - 3, Math.min(9 - k(n), 1)));
+
+  return {
+    r: Math.round(255 * f(0)),
+    g: Math.round(255 * f(8)),
+    b: Math.round(255 * f(4)),
+  };
+};
+
+const compareHexAndHsl = (hex: string, hsl: string): number => {
+  const rgb1 = hexToRgb(hex);
+  const rgb2 = hslStringToRgb(hsl);
+
+  const rDiff = rgb1.r - rgb2.r;
+  const gDiff = rgb1.g - rgb2.g;
+  const bDiff = rgb1.b - rgb2.b;
+
+  const distance = Math.sqrt(rDiff * rDiff + gDiff * gDiff + bDiff * bDiff);
+  const maxDistance = 441.67;
+
+  const similarity = (1 - distance / maxDistance) * 100;
+  return Math.round(similarity);
+};
+
 export default function ColorMatchRiddleScreen() {
   const theme = useTheme();
   const [isRolled, setRolled] = useState<boolean>(false);
   const [rolledColors, setRolledColors] = useState<string[]>(['white', 'white']);
   const [colorPicked, setColorPicked] = useState<number>(-1);
   const [huntStarted, setHuntStarted] = useState<boolean>(false);
+  const [foundColor, setFoundColor] = useState<string>('#FFFFFF');
+  const pickedColorValue = rolledColors[colorPicked];
+  const [colorSimilarity, setColorSimilarity] = useState<number>(0);
+  const [huntOver, setHuntOver] = useState<boolean>(false);
 
   const rollTheDice = () => {
     setRolled(true);
@@ -41,6 +90,14 @@ export default function ColorMatchRiddleScreen() {
   const startTheHunt = () => {
     setHuntStarted(true);
   };
+
+  const onSetColor = (value: string) => {
+    const similarity = compareHexAndHsl(value, pickedColorValue);
+    setFoundColor(value);
+    setColorSimilarity(similarity);
+    if (similarity >= 80)
+      setHuntOver(true);
+  }
 
   return (
     <ThemedView style={styles.container}>
@@ -56,11 +113,12 @@ export default function ColorMatchRiddleScreen() {
         </View>
 
         {huntStarted ?
-          <CameraScreen>
-            <View style={{justifyContent: 'flex-end', flexDirection: 'column', marginTop: 'auto', margin: 12}}>
-              <ThemedView type='backgroundElement' style={{ borderRadius: 16, padding: 8, display: 'flex', flexDirection: 'row', gap: 6}}>
-                <View style={{ height: 50, flexGrow: 1, backgroundColor: rolledColors[colorPicked], borderRadius: 16 }} />
-                <View style={{ height: 50, flexGrow: 1, backgroundColor: 'aquamarine', borderRadius: 16 }} />
+          <CameraScreen onSetColor={onSetColor} isOver={huntOver}>
+            <View style={{ position: 'absolute', bottom: 0, left: 0, right: 0, margin: 12 }}>
+              <ThemedView type='backgroundElement' style={{ borderRadius: 20, padding: 8, display: 'flex', flexDirection: 'row', gap: 6, justifyContent: 'center' }}>
+                <View style={{ height: 50, flexGrow: 1, backgroundColor: pickedColorValue, borderRadius: 16 }} />
+                <ThemedText type='subtitle' style={{ width: 70, textAlign: 'center' }}>{colorSimilarity}%</ThemedText>
+                <View style={{ height: 50, flexGrow: 1, backgroundColor: foundColor, borderRadius: 16 }} />
               </ThemedView>
             </View>
           </CameraScreen>
