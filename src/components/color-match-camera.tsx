@@ -142,16 +142,14 @@ export default function CameraScreen({ children, onSetColor, isOver }: { childre
     <View style={{ flex: 1, position: 'relative' }}>
       <CameraView
         ref={cameraRef}
-        style={StyleSheet.absoluteFill}
+        style={[StyleSheet.absoluteFill, {borderRadius: 32}]}
         facing="back"
         animateShutter={false}
         onCameraReady={() => { isCameraReady.current = true; }}
       />
 
-      <View style={styles.crosshair} />
-
       {Platform.OS !== 'web' && (
-        <View style={styles.hiddenWebView}>
+        <View style={{width: 0, height: 0, opacity: 0, position: 'absolute'}}>
           <WebView
             ref={webViewRef}
             source={{ html: htmlCanvasProcessor }}
@@ -176,47 +174,3 @@ export default function CameraScreen({ children, onSetColor, isOver }: { childre
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  crosshair: {
-    position: 'absolute',
-    top: '50%',
-    left: '50%',
-    width: 20,
-    height: 20,
-    marginTop: -10,
-    marginLeft: -10,
-    borderWidth: 2,
-    borderColor: '#FFFFFF',
-    borderRadius: 10,
-  },
-  footer: {
-    position: 'absolute',
-    bottom: 30,
-    alignSelf: 'center',
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(0,0,0,0.7)',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 20,
-    gap: 10,
-  },
-  colorPreview: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#FFFFFF',
-  },
-  colorText: {
-    color: '#FFFFFF',
-    fontWeight: 'bold',
-  },
-  hiddenWebView: {
-    width: 0,
-    height: 0,
-    opacity: 0,
-    position: 'absolute',
-  },
-});

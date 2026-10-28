@@ -3,13 +3,19 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import Animated, { ZoomIn } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import CameraScreen from '@/components/camera-screen';
+import CameraScreen from '@/components/color-match-camera';
 import ThemedPressable from '@/components/themed-pressable';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { MaxContentWidth, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
+import { ConfettiMethods, PIConfetti } from 'react-native-fast-confetti';
+
+const COLOR_SIMILARITY_THRESHOLD = 80;
+const W_HUE = 0.6;
+const W_LIGHT = 0.25;
+const W_SAT = 0.15;
 
 function getRandomColors(): string[] {
   const randomHue = randomFromInterval(0, 360);
@@ -26,49 +32,60 @@ function randomFromInterval(min: number, max: number): number {
   return Math.random() * (max - min) + min;
 }
 
-const hexToRgb = (hex: string) => {
-  const cleanHex = hex.replace('#', '');
-  const num = parseInt(cleanHex, 16);
-  return {
-    r: (num >> 16) & 255,
-    g: (num >> 8) & 255,
-    b: num & 255,
-  };
+const hexToHSLDict = (hex: string) => {
+  const value = hex.replace('#', '');
+  const r = parseInt(value.slice(0, 2), 16) / 255;
+  const g = parseInt(value.slice(2, 4), 16) / 255;
+  const b = parseInt(value.slice(4, 6), 16) / 255;
+  const max = Math.max(r, g, b);
+  const min = Math.min(r, g, b);
+  const delta = max - min;
+  let h = 0;
+  let s = 0;
+  const l = (max + min) / 2;
+  if (delta !== 0) {
+    s = l > 0.5 ? delta / (2 - max - min) : delta / (max + min);
+    switch (max) {
+      case r:
+        h = ((g - b) / delta) % 6;
+        break;
+      case g:
+        h = (b - r) / delta + 2;
+        break;
+      case b:
+        h = (r - g) / delta + 4;
+        break;
+    }
+    h *= 60;
+    if (h < 0) h += 360;
+  }
+  return { h: h, s: s, l: l };
 };
 
-const hslStringToRgb = (hslStr: string) => {
+const hslStringToDict = (hslStr: string) => {
   const matches = hslStr.match(/[\d.]+/g);
-  if (!matches || matches.length < 3) return { r: 0, g: 0, b: 0 };
-
-  let h = parseFloat(matches[0]);
-  let s = parseFloat(matches[1]) / 100;
-  let l = parseFloat(matches[2]) / 100;
-
-  const k = (n: number) => (n + h / 30) % 12;
-  const a = s * Math.min(l, 1 - l);
-  const f = (n: number) =>
-    l - a * Math.max(-1, Math.min(k(n) - 3, Math.min(9 - k(n), 1)));
-
+  if (!matches || matches.length < 3) return { h: 0, s: 0, l: 0 };
   return {
-    r: Math.round(255 * f(0)),
-    g: Math.round(255 * f(8)),
-    b: Math.round(255 * f(4)),
+    h: parseFloat(matches[0]),
+    s: parseFloat(matches[1]) / 100,
+    l: parseFloat(matches[2]) / 100,
   };
 };
+
+function hueDiff(a: number, b: number): number {
+  const d = Math.abs(a - b) % 360;
+  const circular = d > 180 ? 360 - d : d;
+  return circular / 180; // 0 = ten sam hue, 1 = przeciwległy
+}
 
 const compareHexAndHsl = (hex: string, hsl: string): number => {
-  const rgb1 = hexToRgb(hex);
-  const rgb2 = hslStringToRgb(hsl);
+  const a = hexToHSLDict(hex);
+  const b = hslStringToDict(hsl);
 
-  const rDiff = rgb1.r - rgb2.r;
-  const gDiff = rgb1.g - rgb2.g;
-  const bDiff = rgb1.b - rgb2.b;
-
-  const distance = Math.sqrt(rDiff * rDiff + gDiff * gDiff + bDiff * bDiff);
-  const maxDistance = 441.67;
-
-  const similarity = (1 - distance / maxDistance) * 100;
-  return Math.round(similarity);
+  const dh = hueDiff(a.h, b.h);
+  const dl = Math.abs(a.l - b.l);
+  const ds = Math.abs(a.s - b.s);
+  return W_HUE * dh + W_LIGHT * dl + W_SAT * ds;
 };
 
 export default function ColorMatchRiddleScreen() {
@@ -81,6 +98,7 @@ export default function ColorMatchRiddleScreen() {
   const pickedColorValue = rolledColors[colorPicked];
   const [colorSimilarity, setColorSimilarity] = useState<number>(0);
   const [huntOver, setHuntOver] = useState<boolean>(false);
+  const confettiRef = useRef<ConfettiMethods>(null);
 
   const rollTheDice = () => {
     setRolled(true);
@@ -92,19 +110,26 @@ export default function ColorMatchRiddleScreen() {
   };
 
   const onSetColor = (value: string) => {
-    const similarity = compareHexAndHsl(value, pickedColorValue);
+    const similarity = (1 - compareHexAndHsl(value, pickedColorValue)) * 100;
     setFoundColor(value);
     setColorSimilarity(similarity);
-    if (similarity >= 80)
+    if (similarity >= COLOR_SIMILARITY_THRESHOLD) {
       setHuntOver(true);
+      confettiRef.current?.restart();
+    }
   }
 
   return (
     <ThemedView style={styles.container}>
+      <PIConfetti ref={confettiRef} autoplay={false} gravity={0.8}>
+        <PIConfetti.Origin blastPosition="top-center" count={100}>
+          <PIConfetti.Flake size={16} />
+        </PIConfetti.Origin>
+      </PIConfetti>
       <SafeAreaView style={styles.safeArea}>
         <View style={styles.header}>
           <ThemedText type="code" themeColor="textSecondary">
-            CO TU MA BYĆ?
+            PLACEHOLDER TEXT
           </ThemedText>
           <ThemedText type="title">🎨 Riddle 3: Color Match</ThemedText>
           <ThemedText type="small" themeColor="textSecondary">
@@ -117,10 +142,19 @@ export default function ColorMatchRiddleScreen() {
             <View style={{ position: 'absolute', bottom: 0, left: 0, right: 0, margin: 12 }}>
               <ThemedView type='backgroundElement' style={{ borderRadius: 20, padding: 8, display: 'flex', flexDirection: 'row', gap: 6, justifyContent: 'center' }}>
                 <View style={{ height: 50, flexGrow: 1, backgroundColor: pickedColorValue, borderRadius: 16 }} />
-                <ThemedText type='subtitle' style={{ width: 70, textAlign: 'center' }}>{colorSimilarity}%</ThemedText>
+                <ThemedText type='subtitle' style={{ width: 70, textAlign: 'center' }}>{Math.round(colorSimilarity)}%</ThemedText>
                 <View style={{ height: 50, flexGrow: 1, backgroundColor: foundColor, borderRadius: 16 }} />
               </ThemedView>
             </View>
+            {huntOver ?
+              <ThemedView type='background' style={{ position: 'absolute', top: '30%', width: '100%', padding: 24 }}>
+                <ThemedText type='subtitle' style={{ textAlign: 'center' }}>You made it!</ThemedText>
+                <ThemedPressable content='← Back to Landing Screen'
+                  onPress={() => router.back()} />
+              </ThemedView>
+              :
+              <View style={styles.crosshair} />
+            }
           </CameraScreen>
           :
           <ThemedView type="backgroundElement" style={styles.canvasPlaceholder}>
@@ -156,6 +190,18 @@ export default function ColorMatchRiddleScreen() {
 }
 
 const styles = StyleSheet.create({
+  crosshair: {
+    position: 'absolute',
+    top: '50%',
+    left: '50%',
+    width: 20,
+    height: 20,
+    marginTop: -10,
+    marginLeft: -10,
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
+    borderRadius: 10,
+  },
   container: {
     flex: 1,
     alignItems: 'center',
