@@ -123,7 +123,7 @@ export default function LandingScreen() {
                   <ThemedText type="code">OPEN →</ThemedText>
                 </View>
                 <ThemedText type="default" themeColor="textSecondary">
-                  Using your phone's camera, find an object of a specific, randomly chosen color.
+                  Using your phone&apos;s camera, find an object of a specific, randomly chosen color.
                 </ThemedText>
                 <View style={styles.tagRow}>
                   <ThemedText type="code" style={styles.tag}>
