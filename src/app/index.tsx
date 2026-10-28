@@ -127,13 +127,13 @@ export default function LandingScreen() {
                 </ThemedText>
                 <View style={styles.tagRow}>
                   <ThemedText type="code" style={styles.tag}>
-                    Phone Camera
+                    PhoneCamera
                   </ThemedText>
                   <ThemedText type="code" style={styles.tag}>
-                    Gesture.Tap()
+                    AutoColorFetch
                   </ThemedText>
                   <ThemedText type="code" style={styles.tag}>
-                    Skia Canvas
+                    HSLComparator
                   </ThemedText>
                 </View>
               </ThemedView>

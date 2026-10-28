@@ -11,6 +11,7 @@ Instead of passively dismissing an alarm and opening social media in bed, users 
 1. **Conscious Wake-Up Riddles (Core Hardware Challenges)**
    - **🧊 Riddle 1: Break the AI Cat from Ice (`ice-cat`)** — Shake the phone ($> 2.2\text{g}$ total acceleration via `expo-sensors`) and tap weak-spot markers (`Gesture.Tap()`) to shatter a frosted `@shopify/react-native-skia` ice layer with procedural cracks and heavy haptic feedback.
    - **🌀 Riddle 2: Gyroscope / Tilt Maze (`gyro-maze`)** — Tilt the phone in 2D space to control `matter-js` world gravity at 60 FPS, guiding a ball through maze barriers to the goal sensor rendered on a Skia canvas.
+   - **🎨 Riddle 3: Color Match** - Pick one of 2 colors and use your phone's camera to hunt down object with closest matching color. 
 2. **Morning Ritual Scheduling (Wake Window)**
    - Configure a daily morning window (e.g., `06:30–08:30`). During this window, MorningShield automatically locks into riddle mode until solved for the day (`YYYY-MM-DD`), persisted synchronously via `react-native-mmkv` + `zustand`.
 3. **Distraction App Blocker (Android Optional Enhancement)**
@@ -127,8 +128,8 @@ gh run view --log-failed
 | Week | Date Range (Start – End) | Status | Progress Summary |
 | :--- | :--- | :--- | :--- |
 | **Week 1** | `2026-10-12` – `2026-10-18` | ✅ Completed | Project bootstrap, Expo SDK 58 & New Architecture upgrade (`UIScene` lifecycle support), GitHub Actions CI pipeline (`quality` + `bundle-and-prebuild`), `@swmansion/argent` MCP setup, initial Expo Router navigation & placeholder screens ([PR #2](https://github.com/ReptilianEye/morning-shield/pull/2)), and backlog issues ([#1](https://github.com/ReptilianEye/morning-shield/issues/1), [#3](https://github.com/ReptilianEye/morning-shield/issues/3), [#4](https://github.com/ReptilianEye/morning-shield/issues/4), [#5](https://github.com/ReptilianEye/morning-shield/issues/5)). |
-| **Week 2** | `2026-10-19` – `2026-10-25` | ⏳ Upcoming | _Update slot — add weekly progress notes here._ |
-| **Week 3** | `2026-10-26` – `2026-11-01` | ⏳ Upcoming | _Update slot — add weekly progress notes here._ |
+| **Week 2** | `2026-10-19` – `2026-10-25` | ✅ Completed | Working on implementing Ice Cat and Color Match riddles. |
+| **Week 3** | `2026-10-26` – `2026-11-01` | 🎞️ Ongoing | Color Match riddle. |
 | **Week 4** | `2026-11-02` – `2026-11-08` | ⏳ Upcoming | _Update slot — add weekly progress notes here._ |
 | **Week 5** | `2026-11-09` – `2026-11-15` | ⏳ Upcoming | _Update slot — add weekly progress notes here._ |
 | **Week 6** | `2026-11-16` – `2026-11-22` | ⏳ Upcoming | _Update slot — add weekly progress notes here._ |
