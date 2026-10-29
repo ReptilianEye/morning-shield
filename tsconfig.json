@@ -12,9 +12,28 @@
     }
   },
   "include": [
-    "**/*.ts",
-    "**/*.tsx",
+    "src/**/*.ts",
+    "src/**/*.tsx",
     ".expo/types/**/*.ts",
     "expo-env.d.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "web-build",
+    ".agents",
+    ".argent",
+    ".claude",
+    ".codex",
+    ".cursor",
+    ".gemini",
+    ".github",
+    ".vscode",
+    ".zed",
+    "android",
+    "ios",
+    "assets",
+    "docs",
+    "scripts"
   ]
 }

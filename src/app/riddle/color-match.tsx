@@ -121,7 +121,7 @@ export default function ColorMatchRiddleScreen() {
 
   return (
     <ThemedView style={styles.container}>
-      <PIConfetti ref={confettiRef} autoplay={false} gravity={0.8}>
+      <PIConfetti ref={confettiRef} autoplay={false} gravity={1.0}>
         <PIConfetti.Origin blastPosition="top-center" count={100}>
           <PIConfetti.Flake size={16} />
         </PIConfetti.Origin>
