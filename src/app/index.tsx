@@ -112,6 +112,34 @@ export default function LandingScreen() {
             </Pressable>
           </Link>
 
+          {/* Riddle 3 Link: Color Match */}
+          <Link href="/riddle/color-match" asChild>
+            <Pressable
+              accessibilityRole="button"
+              style={({ pressed }) => [styles.cardPressable, pressed && styles.pressed]}>
+              <ThemedView type="backgroundElement" style={styles.riddleCard}>
+                <View style={styles.riddleHeaderRow}>
+                  <ThemedText type="subtitle">🎨 Riddle 3: Color Match</ThemedText>
+                  <ThemedText type="code">OPEN →</ThemedText>
+                </View>
+                <ThemedText type="default" themeColor="textSecondary">
+                  Using your phone&apos;s camera, find an object of a specific, randomly chosen color.
+                </ThemedText>
+                <View style={styles.tagRow}>
+                  <ThemedText type="code" style={styles.tag}>
+                    PhoneCamera
+                  </ThemedText>
+                  <ThemedText type="code" style={styles.tag}>
+                    AutoColorFetch
+                  </ThemedText>
+                  <ThemedText type="code" style={styles.tag}>
+                    HSLComparator
+                  </ThemedText>
+                </View>
+              </ThemedView>
+            </Pressable>
+          </Link>
+
           {/* Settings Dialog Trigger Card */}
           <Link href="/settings" asChild>
             <Pressable

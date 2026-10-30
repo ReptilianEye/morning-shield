@@ -1,5 +1,4 @@
-import { ExpoConfig, ConfigContext } from 'expo/config';
-
+import { ConfigContext, ExpoConfig } from 'expo/config';
 export default ({ config }: ConfigContext): ExpoConfig => ({
   ...config,
   name: 'MorningShield',
@@ -28,8 +27,8 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       {
         android: {
           minSdkVersion: 26,
-          compileSdkVersion: 36,
-          targetSdkVersion: 36,
+          compileSdkVersion: 37,
+          targetSdkVersion: 37,
         },
         ios: {
           deploymentTarget: '16.4',
