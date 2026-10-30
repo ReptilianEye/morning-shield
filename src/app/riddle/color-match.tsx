@@ -8,6 +8,7 @@ import ThemedPressable from '@/components/themed-pressable';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { MaxContentWidth, Spacing } from '@/constants/theme';
+import { useColorCalculations } from '@/hooks/use-color-calculations';
 import { useTheme } from '@/hooks/use-theme';
 import { useRef, useState } from 'react';
 import { ConfettiMethods, PIConfetti } from 'react-native-fast-confetti';
@@ -17,88 +18,20 @@ const W_HUE = 0.6;
 const W_LIGHT = 0.25;
 const W_SAT = 0.15;
 
-function getRandomColors(): string[] {
-  const randomHue = randomFromInterval(0, 360);
-  const randomSaturation = randomFromInterval(40, 60);
-  const randomLightness = randomFromInterval(30, 70);
-
-  return [
-    `hsl(${randomHue}, ${randomSaturation}%, ${randomLightness}%)`,
-    `hsl(${(randomHue + 180) % 360}, ${randomSaturation}%, ${randomLightness}%)`,
-  ];
-}
-
-function randomFromInterval(min: number, max: number): number {
-  return Math.random() * (max - min) + min;
-}
-
-const hexToHSLDict = (hex: string) => {
-  const value = hex.replace('#', '');
-  const r = parseInt(value.slice(0, 2), 16) / 255;
-  const g = parseInt(value.slice(2, 4), 16) / 255;
-  const b = parseInt(value.slice(4, 6), 16) / 255;
-  const max = Math.max(r, g, b);
-  const min = Math.min(r, g, b);
-  const delta = max - min;
-  let h = 0;
-  let s = 0;
-  const l = (max + min) / 2;
-  if (delta !== 0) {
-    s = l > 0.5 ? delta / (2 - max - min) : delta / (max + min);
-    switch (max) {
-      case r:
-        h = ((g - b) / delta) % 6;
-        break;
-      case g:
-        h = (b - r) / delta + 2;
-        break;
-      case b:
-        h = (r - g) / delta + 4;
-        break;
-    }
-    h *= 60;
-    if (h < 0) h += 360;
-  }
-  return { h: h, s: s, l: l };
-};
-
-const hslStringToDict = (hslStr: string) => {
-  const matches = hslStr.match(/[\d.]+/g);
-  if (!matches || matches.length < 3) return { h: 0, s: 0, l: 0 };
-  return {
-    h: parseFloat(matches[0]),
-    s: parseFloat(matches[1]) / 100,
-    l: parseFloat(matches[2]) / 100,
-  };
-};
-
-function hueDiff(a: number, b: number): number {
-  const d = Math.abs(a - b) % 360;
-  const circular = d > 180 ? 360 - d : d;
-  return circular / 180; // 0 = ten sam hue, 1 = przeciwległy
-}
-
-const compareHexAndHsl = (hex: string, hsl: string): number => {
-  const a = hexToHSLDict(hex);
-  const b = hslStringToDict(hsl);
-
-  const dh = hueDiff(a.h, b.h);
-  const dl = Math.abs(a.l - b.l);
-  const ds = Math.abs(a.s - b.s);
-  return W_HUE * dh + W_LIGHT * dl + W_SAT * ds;
-};
-
 export default function ColorMatchRiddleScreen() {
   const theme = useTheme();
+  const { getRandomColors, compareHexAndHsl } = useColorCalculations();
+  const confettiRef = useRef<ConfettiMethods>(null);
+
   const [isRolled, setRolled] = useState<boolean>(false);
   const [rolledColors, setRolledColors] = useState<string[]>(['white', 'white']);
   const [colorPicked, setColorPicked] = useState<number>(-1);
-  const [huntStarted, setHuntStarted] = useState<boolean>(false);
-  const [foundColor, setFoundColor] = useState<string>('#FFFFFF');
   const pickedColorValue = rolledColors[colorPicked];
-  const [colorSimilarity, setColorSimilarity] = useState<number>(0);
+
+  const [huntStarted, setHuntStarted] = useState<boolean>(false);
   const [huntOver, setHuntOver] = useState<boolean>(false);
-  const confettiRef = useRef<ConfettiMethods>(null);
+  const [foundColor, setFoundColor] = useState<string>('#FFFFFF');
+  const [colorSimilarity, setColorSimilarity] = useState<number>(0);
 
   const rollTheDice = () => {
     setRolled(true);
@@ -110,7 +43,7 @@ export default function ColorMatchRiddleScreen() {
   };
 
   const onSetColor = (value: string) => {
-    const similarity = (1 - compareHexAndHsl(value, pickedColorValue)) * 100;
+    const similarity = (1 - compareHexAndHsl(value, pickedColorValue, W_HUE, W_LIGHT, W_SAT)) * 100;
     setFoundColor(value);
     setColorSimilarity(similarity);
     if (similarity >= COLOR_SIMILARITY_THRESHOLD) {
