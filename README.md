@@ -128,9 +128,9 @@ gh run view --log-failed
 | Week | Date Range (Start – End) | Status | Progress Summary |
 | :--- | :--- | :--- | :--- |
 | **Week 1** | `2026-10-12` – `2026-10-18` | ✅ Completed | Project bootstrap, Expo SDK 58 & New Architecture upgrade (`UIScene` lifecycle support), GitHub Actions CI pipeline (`quality` + `bundle-and-prebuild`), `@swmansion/argent` MCP setup, initial Expo Router navigation & placeholder screens ([PR #2](https://github.com/ReptilianEye/morning-shield/pull/2)), and backlog issues ([#1](https://github.com/ReptilianEye/morning-shield/issues/1), [#3](https://github.com/ReptilianEye/morning-shield/issues/3), [#4](https://github.com/ReptilianEye/morning-shield/issues/4), [#5](https://github.com/ReptilianEye/morning-shield/issues/5)). |
-| **Week 2** | `2026-10-19` – `2026-10-25` | ✅ Completed | Working on implementing Ice Cat and Color Match riddles. |
-| **Week 3** | `2026-10-26` – `2026-11-01` | 🎞️ Ongoing | Color Match riddle. |
-| **Week 4** | `2026-11-02` – `2026-11-08` | ⏳ Upcoming | _Update slot — add weekly progress notes here._ |
+| **Week 2** | `2026-10-19` – `2026-10-25` | ✅ Completed | Started implementing Ice Cat (`ice-cat`) and Color Match (`color-match`) riddles. |
+| **Week 3** | `2026-10-26` – `2026-11-01` | ✅ Completed | Completed Color Match riddle with camera color detection, HSL similarity matching, and confetti effects ([PR #7](https://github.com/ReptilianEye/morning-shield/pull/7)); implemented Ice Break riddle with `useShakeDetector` accelerometer hook, `Gesture.Tap()` weak spots, and Skia procedural cracks (`IceOverlayCanvas`). |
+| **Week 4** | `2026-11-02` – `2026-11-08` | 🎞️ Ongoing | Rebased & merged Ice Break riddle ([PR #6](https://github.com/ReptilianEye/morning-shield/pull/6), [#4](https://github.com/ReptilianEye/morning-shield/issues/4)); implemented persistent `zustand` + `react-native-mmkv` store (`useMorningStore`), interactive Settings dialog (`wakeWindow`, riddle mode selector, `expo-notifications`, Android blocked apps), and live dashboard lock status ([#5](https://github.com/ReptilianEye/morning-shield/issues/5)). |
 | **Week 5** | `2026-11-09` – `2026-11-15` | ⏳ Upcoming | _Update slot — add weekly progress notes here._ |
 | **Week 6** | `2026-11-16` – `2026-11-22` | ⏳ Upcoming | _Update slot — add weekly progress notes here._ |
 | **Week 7** | `2026-11-23` – `2026-11-29` | ⏳ Upcoming | _Update slot — add weekly progress notes here._ |

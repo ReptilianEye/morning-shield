@@ -11,6 +11,7 @@ import { ThemedView } from '@/components/themed-view';
 import { MaxContentWidth, Spacing } from '@/constants/theme';
 import { useShakeDetector } from '@/hooks/useShakeDetector';
 import { IceOverlayCanvas, ImpactPoint } from '@/components/IceOverlayCanvas';
+import { useMorningStore } from '@/store/useMorningStore';
 
 interface WeakSpot {
   id: string;
@@ -30,6 +31,7 @@ const WEAK_SPOT_DAMAGE = 25;
 const CHIP_DAMAGE = 5;
 
 export default function IceCatRiddleScreen() {
+  const markRiddleSolved = useMorningStore((s) => s.markRiddleSolved);
   const [iceHealth, setIceHealth] = useState(100);
   const [impactPoints, setImpactPoints] = useState<ImpactPoint[]>([]);
   const [weakSpots, setWeakSpots] = useState<WeakSpot[]>(INITIAL_WEAK_SPOTS);
@@ -45,18 +47,22 @@ export default function IceCatRiddleScreen() {
   }, []);
 
   // Damage helper
-  const applyDamage = useCallback((amount: number, reason: string) => {
-    setIceHealth((prevHealth) => {
-      const nextHealth = Math.max(0, prevHealth - amount);
-      if (nextHealth === 0 && prevHealth > 0) {
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
-        setLastActionMessage('🎉 ICE SHATTERED! The AI Cat is free!');
-      } else {
-        setLastActionMessage(reason);
-      }
-      return nextHealth;
-    });
-  }, []);
+  const applyDamage = useCallback(
+    (amount: number, reason: string) => {
+      setIceHealth((prevHealth) => {
+        const nextHealth = Math.max(0, prevHealth - amount);
+        if (nextHealth === 0 && prevHealth > 0) {
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+          markRiddleSolved();
+          setLastActionMessage('🎉 ICE SHATTERED! The AI Cat is free!');
+        } else {
+          setLastActionMessage(reason);
+        }
+        return nextHealth;
+      });
+    },
+    [markRiddleSolved]
+  );
 
   // 1. Shake interaction
   const handleShake = useCallback(() => {
