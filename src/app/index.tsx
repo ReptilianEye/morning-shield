@@ -1,12 +1,53 @@
-import { Link } from 'expo-router';
+import { Link, router } from 'expo-router';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { MaxContentWidth, Spacing } from '@/constants/theme';
+import {
+  formatTime24h,
+  isWithinWakeWindow,
+  RiddleMode,
+  useMorningStore,
+} from '@/store/useMorningStore';
+
+const RIDDLE_MODE_LABELS: Record<RiddleMode, string> = {
+  'ice-cat': '🧊 Ice Cat',
+  'gyro-maze': '🌀 Gyro Maze',
+  'color-match': '🎨 Color Match',
+  random: '🎲 Random Daily',
+};
 
 export default function LandingScreen() {
+  const wakeWindow = useMorningStore((s) => s.wakeWindow);
+  const selectedRiddle = useMorningStore((s) => s.selectedRiddle);
+  const notificationsEnabled = useMorningStore((s) => s.notificationsEnabled);
+  const blockedApps = useMorningStore((s) => s.blockedApps);
+  const lastSolvedDate = useMorningStore((s) => s.lastSolvedDate);
+  const isMorningLocked = useMorningStore((s) => s.isMorningLocked);
+  const isSolvedToday = useMorningStore((s) => s.isSolvedToday);
+  const getTargetRiddleRoute = useMorningStore((s) => s.getTargetRiddleRoute);
+
+  const locked = isMorningLocked();
+  const solvedToday = isSolvedToday();
+  const inWakeWindow = isWithinWakeWindow(wakeWindow);
+
+  const windowFormatted = `${formatTime24h(
+    wakeWindow.startHour,
+    wakeWindow.startMinute
+  )} – ${formatTime24h(wakeWindow.endHour, wakeWindow.endMinute)}`;
+
+  const statusHeadline = locked
+    ? 'MORNING SHIELD LOCKED — SOLVE RIDDLE'
+    : solvedToday
+      ? `UNLOCKED — SOLVED TODAY (${lastSolvedDate})`
+      : 'STATUS — UNLOCKED (STANDBY)';
+
+  const handleLaunchActiveChallenge = () => {
+    router.push(getTargetRiddleRoute());
+  };
+
   return (
     <ThemedView style={styles.container}>
       <SafeAreaView style={styles.safeArea}>
@@ -34,23 +75,55 @@ export default function LandingScreen() {
             </Link>
           </View>
 
-          {/* Morning Status Placeholder Card */}
-          <ThemedView type="backgroundElement" style={styles.statusCard}>
+          {/* Live Morning Status Card */}
+          <ThemedView
+            type="backgroundElement"
+            style={[styles.statusCard, locked && styles.statusCardLocked]}>
             <View style={styles.statusBadgeRow}>
-              <View style={styles.statusDot} />
-              <ThemedText type="smallBold">STATUS PLACEHOLDER — UNLOCKED</ThemedText>
+              <View style={[styles.statusDot, locked && styles.statusDotLocked]} />
+              <ThemedText type="smallBold">{statusHeadline}</ThemedText>
             </View>
+
             <ThemedText type="default" themeColor="textSecondary">
-              Wake-up window: 06:30 – 08:30 (placeholder). Complete a morning riddle below to test
-              the hardware-sensor challenges.
+              {locked
+                ? `Your wake-up window (${windowFormatted}) is active. Complete your morning challenge (${RIDDLE_MODE_LABELS[selectedRiddle]}) to unlock ${blockedApps.length} guarded apps.`
+                : solvedToday
+                  ? `Great job! You completed today's morning riddle. Wake-up window (${windowFormatted}) is unlocked for the rest of the day.`
+                  : `Wake-up window: ${windowFormatted} (${inWakeWindow ? 'active' : 'outside window'}). Preferred mode: ${RIDDLE_MODE_LABELS[selectedRiddle]}.`}
             </ThemedText>
+
+            <View style={styles.statusMetaRow}>
+              <ThemedText type="code" style={styles.metaChip}>
+                ⏰ {windowFormatted}
+              </ThemedText>
+              <ThemedText type="code" style={styles.metaChip}>
+                {RIDDLE_MODE_LABELS[selectedRiddle]}
+              </ThemedText>
+              <ThemedText type="code" style={styles.metaChip}>
+                🛡️ {blockedApps.length} Apps
+              </ThemedText>
+              <ThemedText type="code" style={styles.metaChip}>
+                🔔 {notificationsEnabled ? 'On' : 'Off'}
+              </ThemedText>
+            </View>
+
+            {locked ? (
+              <Pressable
+                accessibilityRole="button"
+                onPress={handleLaunchActiveChallenge}
+                style={({ pressed }) => [styles.unlockCtaButton, pressed && styles.pressed]}>
+                <ThemedText type="smallBold" style={styles.unlockCtaText}>
+                  🚀 Start Morning Challenge ({RIDDLE_MODE_LABELS[selectedRiddle]}) →
+                </ThemedText>
+              </Pressable>
+            ) : null}
           </ThemedView>
 
           {/* Riddles Section */}
           <View style={styles.sectionHeader}>
             <ThemedText type="subtitle">Morning Riddles</ThemedText>
             <ThemedText type="small" themeColor="textSecondary">
-              Select a riddle placeholder to test navigation
+              Select a hardware-sensor challenge below to test or solve your daily ritual
             </ThemedText>
           </View>
 
@@ -62,7 +135,9 @@ export default function LandingScreen() {
               <ThemedView type="backgroundElement" style={styles.riddleCard}>
                 <View style={styles.riddleHeaderRow}>
                   <ThemedText type="subtitle">🧊 Riddle 1: Ice Cat</ThemedText>
-                  <ThemedText type="code">OPEN →</ThemedText>
+                  <ThemedText type="code">
+                    {selectedRiddle === 'ice-cat' ? 'ACTIVE • OPEN →' : 'OPEN →'}
+                  </ThemedText>
                 </View>
                 <ThemedText type="default" themeColor="textSecondary">
                   Break the AI Cat out of a frosted Skia ice block by shaking the phone (&gt; 2.2g)
@@ -91,7 +166,9 @@ export default function LandingScreen() {
               <ThemedView type="backgroundElement" style={styles.riddleCard}>
                 <View style={styles.riddleHeaderRow}>
                   <ThemedText type="subtitle">🌀 Riddle 2: Gyro Maze</ThemedText>
-                  <ThemedText type="code">OPEN →</ThemedText>
+                  <ThemedText type="code">
+                    {selectedRiddle === 'gyro-maze' ? 'ACTIVE • OPEN →' : 'OPEN →'}
+                  </ThemedText>
                 </View>
                 <ThemedText type="default" themeColor="textSecondary">
                   Tilt your phone in 2D space to control gravity and guide the ball through a 60 FPS
@@ -120,7 +197,9 @@ export default function LandingScreen() {
               <ThemedView type="backgroundElement" style={styles.riddleCard}>
                 <View style={styles.riddleHeaderRow}>
                   <ThemedText type="subtitle">🎨 Riddle 3: Color Match</ThemedText>
-                  <ThemedText type="code">OPEN →</ThemedText>
+                  <ThemedText type="code">
+                    {selectedRiddle === 'color-match' ? 'ACTIVE • OPEN →' : 'OPEN →'}
+                  </ThemedText>
                 </View>
                 <ThemedText type="default" themeColor="textSecondary">
                   Using your phone&apos;s camera, find an object of a specific, randomly chosen color.
@@ -151,8 +230,9 @@ export default function LandingScreen() {
                   <ThemedText type="code">MODAL</ThemedText>
                 </View>
                 <ThemedText type="small" themeColor="textSecondary">
-                  Opens the settings modal dialog placeholder (wake window, riddle mode, and
-                  Android app blocker configuration — TBD).
+                  Window: {windowFormatted} • Mode: {RIDDLE_MODE_LABELS[selectedRiddle]} •{' '}
+                  {blockedApps.length} blocked apps • Notifications:{' '}
+                  {notificationsEnabled ? 'Enabled' : 'Off'}
                 </ThemedText>
               </ThemedView>
             </Pressable>
@@ -201,6 +281,11 @@ const styles = StyleSheet.create({
     padding: Spacing.four,
     borderRadius: Spacing.four,
     gap: Spacing.two,
+    borderWidth: 1,
+    borderColor: 'rgba(34, 197, 94, 0.25)',
+  },
+  statusCardLocked: {
+    borderColor: 'rgba(245, 158, 11, 0.65)',
   },
   statusBadgeRow: {
     flexDirection: 'row',
@@ -212,6 +297,33 @@ const styles = StyleSheet.create({
     height: 10,
     borderRadius: 5,
     backgroundColor: '#22c55e',
+  },
+  statusDotLocked: {
+    backgroundColor: '#f59e0b',
+  },
+  statusMetaRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: Spacing.one,
+    marginTop: Spacing.half,
+  },
+  metaChip: {
+    fontSize: 11,
+    paddingVertical: 3,
+    paddingHorizontal: 8,
+    borderRadius: 6,
+    backgroundColor: 'rgba(150, 150, 150, 0.15)',
+  },
+  unlockCtaButton: {
+    marginTop: Spacing.one,
+    paddingVertical: Spacing.two,
+    paddingHorizontal: Spacing.three,
+    borderRadius: Spacing.three,
+    backgroundColor: '#f59e0b',
+    alignItems: 'center',
+  },
+  unlockCtaText: {
+    color: '#121212',
   },
   sectionHeader: {
     marginTop: Spacing.two,

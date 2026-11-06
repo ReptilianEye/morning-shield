@@ -10,6 +10,7 @@ import { ThemedView } from '@/components/themed-view';
 import { MaxContentWidth, Spacing } from '@/constants/theme';
 import { useColorCalculations } from '@/hooks/use-color-calculations';
 import { useTheme } from '@/hooks/use-theme';
+import { useMorningStore } from '@/store/useMorningStore';
 import { useRef, useState } from 'react';
 import { ConfettiMethods, PIConfetti } from 'react-native-fast-confetti';
 
@@ -20,6 +21,7 @@ const W_SAT = 0.15;
 
 export default function ColorMatchRiddleScreen() {
   const theme = useTheme();
+  const markRiddleSolved = useMorningStore((s) => s.markRiddleSolved);
   const { getRandomColors, compareHexAndHsl } = useColorCalculations();
   const confettiRef = useRef<ConfettiMethods>(null);
 
@@ -48,6 +50,7 @@ export default function ColorMatchRiddleScreen() {
     setColorSimilarity(similarity);
     if (similarity >= COLOR_SIMILARITY_THRESHOLD) {
       setHuntOver(true);
+      markRiddleSolved();
       confettiRef.current?.restart();
     }
   }
