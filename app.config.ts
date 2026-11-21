@@ -24,6 +24,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     'expo-splash-screen',
     'expo-image',
     'expo-status-bar',
+    'expo-web-browser',
     [
       'expo-camera',
       {
