@@ -22,8 +22,31 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   plugins: [
     'expo-router',
     'expo-splash-screen',
-    "expo-image",
-    "expo-status-bar",
+    'expo-image',
+    'expo-status-bar',
+    [
+      'expo-camera',
+      {
+        cameraPermission:
+          'Allow $(PRODUCT_NAME) to access your camera for color matching challenges.',
+        microphonePermission: false,
+        recordAudioAndroid: false,
+        barcodeScannerEnabled: false,
+      },
+    ],
+    [
+      'expo-sensors',
+      {
+        motionPermission:
+          'Allow $(PRODUCT_NAME) to access device motion for shake and tilt challenges.',
+      },
+    ],
+    [
+      'expo-notifications',
+      {
+        enableRemoteNotifications: false,
+      },
+    ],
     [
       'expo-build-properties',
       {

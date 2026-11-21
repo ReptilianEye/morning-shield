@@ -6,36 +6,65 @@ import { TextType, ThemedText } from './themed-text';
 export type ThemedPressableProps = PressableProps & {
   content?: string | React.ReactNode;
   children?: React.ReactNode;
-  color?: ThemeColor,
-  textType?: TextType,
+  color?: ThemeColor;
+  textType?: TextType;
 };
 
-export default function ThemedPressable({ content, children, color = 'primary', textType = 'default', ...rest }: ThemedPressableProps) {
+const SOLID_COLOR_KEYS: ThemeColor[] = ['primary', 'accent', 'success'];
+
+export default function ThemedPressable({
+  content,
+  children,
+  color = 'primary',
+  textType = 'smallBold',
+  disabled,
+  style,
+  ...rest
+}: ThemedPressableProps) {
   const theme = useTheme();
   const renderContent = content ?? children;
+  const usesLightText = SOLID_COLOR_KEYS.includes(color);
+
   return (
     <Pressable
       accessibilityRole="button"
-      style={({ pressed }) => [
+      disabled={disabled}
+      style={(state) => [
         styles.button,
         { backgroundColor: theme[color] },
-        pressed && styles.pressed,
+        disabled && styles.disabled,
+        state.pressed && !disabled && styles.pressed,
+        typeof style === 'function' ? style(state) : style,
       ]}
-      {...rest}
-    >
-      {typeof renderContent === 'string' ? <ThemedText type={textType}>{renderContent}</ThemedText> : renderContent}
+      {...rest}>
+      {typeof renderContent === 'string' ? (
+        <ThemedText
+          type={textType}
+          style={usesLightText ? styles.lightText : undefined}>
+          {renderContent}
+        </ThemedText>
+      ) : (
+        renderContent
+      )}
     </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
   button: {
-    borderRadius: Spacing.three,
-    paddingVertical: Spacing.three,
-    paddingHorizontal: Spacing.five,
+    borderRadius: 16,
+    paddingVertical: 14,
+    paddingHorizontal: Spacing.four,
     alignItems: 'center',
+    justifyContent: 'center',
+  },
+  lightText: {
+    color: '#FFFFFF',
+  },
+  disabled: {
+    opacity: 0.42,
   },
   pressed: {
-    opacity: 0.75,
+    opacity: 0.82,
   },
 });

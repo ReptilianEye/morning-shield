@@ -5,6 +5,7 @@ This directory stores living documentation for **MorningShield**—covering envi
 ## Contents
 
 - **[Setup & Agent Skills](./setup-and-skills.md)** — How to pull official Expo & React Native agent skills, install dependencies, configure native builds, and grant Android ADB permissions.
+- **[Device Install Guide](./device-install.md)** — How to install standalone Release builds on physical iOS and Android devices over USB without running the Metro/Expo server.
 - **[Features & Architecture](./features.md)** — Overview and implementation status of MorningShield features (Zustand + MMKV store, Ice Cat riddle, Gyro Maze riddle, navigation lock guard, and Android app blocker).
 - **[Lessons Learned](./lessons-learned.md)** — Troubleshooting notes, SDK 57 / RN 0.86 gotchas, and environment tips discovered during development.
 

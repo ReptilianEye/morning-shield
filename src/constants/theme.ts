@@ -1,30 +1,56 @@
 /**
- * Below are the colors that are used in the app. The colors are defined in the light and dark mode.
- * There are many other ways to style your app. For example, [Nativewind](https://www.nativewind.dev/), [Tamagui](https://tamagui.dev/), [unistyles](https://reactnativeunistyles.vercel.app), etc.
+ * Semantic light and dark theme tokens for MorningShield.
  */
 
 import '@/global.css';
 
 import { Platform } from 'react-native';
 
-export type ThemeColor = 'primary' | 'text' | 'textSecondary' | 'background' | 'backgroundElement' | 'backgroundSelected';
+export type ThemeColor =
+  | 'primary'
+  | 'text'
+  | 'textSecondary'
+  | 'background'
+  | 'backgroundElement'
+  | 'backgroundSelected'
+  | 'card'
+  | 'border'
+  | 'accent'
+  | 'accentSoft'
+  | 'success'
+  | 'successSoft';
 
-export const Colors: { light: Record<ThemeColor, string>, dark: Record<ThemeColor, string> } = {
+export const Colors: {
+  light: Record<ThemeColor, string>;
+  dark: Record<ThemeColor, string>;
+} = {
   light: {
-    primary: 'purple',
-    text: '#121212',
-    textSecondary: '#60646C',
-    background: '#ffffff',
-    backgroundElement: '#F0F0F3',
-    backgroundSelected: '#E0E1E6',
+    primary: '#4F46E5',
+    text: '#0F172A',
+    textSecondary: '#5B6475',
+    background: '#F5F7FB',
+    backgroundElement: '#FFFFFF',
+    backgroundSelected: '#E8ECF4',
+    card: '#FFFFFF',
+    border: 'rgba(15, 23, 42, 0.08)',
+    accent: '#4F46E5',
+    accentSoft: 'rgba(79, 70, 229, 0.10)',
+    success: '#16A34A',
+    successSoft: 'rgba(22, 163, 74, 0.12)',
   },
   dark: {
-    primary: 'purple',
-    text: '#ffffff',
-    textSecondary: '#B0B4BA',
-    background: '#121212',
-    backgroundElement: '#212225',
-    backgroundSelected: '#2E3135',
+    primary: '#818CF8',
+    text: '#F8FAFC',
+    textSecondary: '#94A3B8',
+    background: '#0B1120',
+    backgroundElement: '#151E32',
+    backgroundSelected: '#1E293B',
+    card: '#151E32',
+    border: 'rgba(248, 250, 252, 0.10)',
+    accent: '#818CF8',
+    accentSoft: 'rgba(129, 140, 248, 0.16)',
+    success: '#22C55E',
+    successSoft: 'rgba(34, 197, 94, 0.16)',
   },
 } as const;
 
