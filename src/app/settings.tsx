@@ -68,6 +68,15 @@ const CHALLENGE_OPTIONS: ChallengeOption[] = [
     tint: '#D97706',
     badgeBg: 'rgba(245, 158, 11, 0.16)',
   },
+  {
+    id: 'sequence-tap',
+    title: 'Sequence Tap',
+    subtitle: 'Tap shuffled numbers in ascending or descending order',
+    symbol: 'number.square.fill',
+    fallbackEmoji: '🔢',
+    tint: '#0D9488',
+    badgeBg: 'rgba(13, 148, 136, 0.14)',
+  },
 ];
 
 const WINDOW_PRESETS: { label: string; window: WakeWindow }[] = [

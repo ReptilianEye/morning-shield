@@ -23,6 +23,7 @@ export default function RiddleLayout() {
       <Stack.Screen name="ice-cat" />
       <Stack.Screen name="gyro-maze" />
       <Stack.Screen name="color-match" />
+      <Stack.Screen name="sequence-tap" />
     </Stack>
   );
 }

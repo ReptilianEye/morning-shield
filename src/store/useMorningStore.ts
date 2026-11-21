@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { createJSONStorage, persist, StateStorage } from 'zustand/middleware';
 import { createMMKV } from 'react-native-mmkv';
 
-export type RiddleChoice = 'ice-cat' | 'gyro-maze' | 'color-match' | 'random';
+export type RiddleChoice = 'ice-cat' | 'gyro-maze' | 'color-match' | 'sequence-tap' | 'random';
 
 export interface WakeWindow {
   startHour: number;
@@ -75,11 +75,15 @@ export function formatWakeWindow(window: WakeWindow): string {
   return `${formatTime24(window.startHour, window.startMinute)} – ${formatTime24(window.endHour, window.endMinute)}`;
 }
 
-export type ActiveRiddleRoute = '/riddle/ice-cat' | '/riddle/color-match' | '/riddle/gyro-maze';
+export type ActiveRiddleRoute =
+  | '/riddle/ice-cat'
+  | '/riddle/color-match'
+  | '/riddle/sequence-tap'
+  | '/riddle/gyro-maze';
 
 /**
  * Resolves the target challenge route for automatic morning lock redirects.
- * Daily Mix ('random') alternates between implemented challenges by day of month.
+ * Daily Mix ('random') rotates across implemented challenges by day of month.
  */
 export function resolveActiveRiddleRoute(
   selectedRiddle: RiddleChoice,
@@ -87,9 +91,15 @@ export function resolveActiveRiddleRoute(
 ): ActiveRiddleRoute {
   if (selectedRiddle === 'ice-cat') return '/riddle/ice-cat';
   if (selectedRiddle === 'color-match') return '/riddle/color-match';
+  if (selectedRiddle === 'sequence-tap') return '/riddle/sequence-tap';
   if (selectedRiddle === 'gyro-maze') return '/riddle/gyro-maze';
 
-  return now.getDate() % 2 === 0 ? '/riddle/color-match' : '/riddle/ice-cat';
+  const implemented: ActiveRiddleRoute[] = [
+    '/riddle/ice-cat',
+    '/riddle/color-match',
+    '/riddle/sequence-tap',
+  ];
+  return implemented[now.getDate() % implemented.length];
 }
 
 function shiftTimeMinutes(hour: number, minute: number, deltaMinutes: number): { hour: number; minute: number } {

@@ -16,8 +16,12 @@ import {
 } from '@/store/useMorningStore';
 
 interface ChallengeItem {
-  id: 'ice-cat' | 'gyro-maze' | 'color-match';
-  href: '/riddle/ice-cat' | '/riddle/gyro-maze' | '/riddle/color-match';
+  id: 'ice-cat' | 'gyro-maze' | 'color-match' | 'sequence-tap';
+  href:
+    | '/riddle/ice-cat'
+    | '/riddle/gyro-maze'
+    | '/riddle/color-match'
+    | '/riddle/sequence-tap';
   title: string;
   description: string;
   tags: string[];
@@ -63,6 +67,18 @@ const CHALLENGES: ChallengeItem[] = [
     fallbackEmoji: '🎨',
     tint: '#D97706',
     badgeBg: 'rgba(245, 158, 11, 0.16)',
+  },
+  {
+    id: 'sequence-tap',
+    href: '/riddle/sequence-tap',
+    title: 'Sequence Tap',
+    description:
+      'Clear the scattered number tiles by tapping all 20 in ascending or descending order.',
+    tags: ['Focus & Tap', 'Quick'],
+    symbol: 'number.square.fill',
+    fallbackEmoji: '🔢',
+    tint: '#0D9488',
+    badgeBg: 'rgba(13, 148, 136, 0.14)',
   },
 ];
 
