@@ -3,23 +3,34 @@ import { Platform, StyleSheet, Text, type TextProps } from 'react-native';
 import { Fonts, ThemeColor } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 
-export type TextType = 'default' | 'title' | 'small' | 'bigger' | 'smallBold' | 'subtitle' | 'link' | 'linkPrimary' | 'code';
+export type TextType =
+  | 'default'
+  | 'title'
+  | 'small'
+  | 'bigger'
+  | 'smallBold'
+  | 'subtitle'
+  | 'eyebrow'
+  | 'link'
+  | 'linkPrimary'
+  | 'code';
 
 export type ThemedTextProps = TextProps & {
   type?: TextType;
   themeColor?: ThemeColor;
 };
 
-export function ThemedText({ style, type = 'default', themeColor = 'text', ...rest }: ThemedTextProps) {
+export function ThemedText({
+  style,
+  type = 'default',
+  themeColor = 'text',
+  ...rest
+}: ThemedTextProps) {
   const theme = useTheme();
 
   return (
     <Text
-      style={[
-        { color: theme[themeColor] },
-        styles[type],
-        style,
-      ]}
+      style={[{ color: theme[themeColor] }, styles[type], style]}
       {...rest}
     />
   );
@@ -29,45 +40,55 @@ const styles = StyleSheet.create({
   small: {
     fontSize: 14,
     lineHeight: 20,
-    fontWeight: 500,
+    fontWeight: '400',
   },
   smallBold: {
     fontSize: 14,
     lineHeight: 20,
-    fontWeight: 700,
+    fontWeight: '600',
   },
   default: {
     fontSize: 16,
-    lineHeight: 24,
-    fontWeight: 500,
+    lineHeight: 23,
+    fontWeight: '400',
   },
   bigger: {
-    fontSize: 20,
+    fontSize: 18,
     lineHeight: 24,
-    fontWeight: 500,
+    fontWeight: '600',
   },
   title: {
-    fontSize: 48,
-    fontWeight: 600,
-    lineHeight: 52,
+    fontSize: 30,
+    fontWeight: '700',
+    lineHeight: 36,
+    letterSpacing: -0.6,
   },
   subtitle: {
-    fontSize: 32,
-    lineHeight: 44,
-    fontWeight: 600,
+    fontSize: 20,
+    lineHeight: 26,
+    fontWeight: '700',
+    letterSpacing: -0.3,
+  },
+  eyebrow: {
+    fontSize: 12,
+    lineHeight: 16,
+    fontWeight: '700',
+    letterSpacing: 0.9,
+    textTransform: 'uppercase',
   },
   link: {
-    lineHeight: 30,
+    lineHeight: 24,
     fontSize: 14,
   },
   linkPrimary: {
-    lineHeight: 30,
+    lineHeight: 24,
     fontSize: 14,
     color: '#3c87f7',
   },
   code: {
     fontFamily: Fonts.mono,
-    fontWeight: Platform.select({ android: 700 }) ?? 500,
+    fontWeight: Platform.select({ android: '700' }) ?? '500',
     fontSize: 12,
+    lineHeight: 16,
   },
 });

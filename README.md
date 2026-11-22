@@ -39,23 +39,25 @@ Instead of passively dismissing an alarm and opening social media in bed, users 
 src/
 ├── app/
 │   ├── _layout.tsx             # Root Stack layout + GestureHandlerRootView + morning lock guard
-│   ├── index.tsx               # Status screen (Locked/Unlocked, timer, test riddle triggers)
-│   ├── settings.tsx            # Wake-up window config & Android blocked apps selector (modal)
+│   ├── index.tsx               # Home dashboard (lock status, active window, challenge cards)
+│   ├── settings.tsx            # Persisted preferences modal (window, challenge, reminders, apps)
 │   └── riddle/
-│       ├── _layout.tsx         # Fullscreen modal layout (gestureEnabled: false, back button disabled)
-│       ├── ice-cat.tsx         # Riddle 1: Break the AI Cat from Ice
-│       └── gyro-maze.tsx       # Riddle 2: Gyroscope / Accelerometer Maze
+│       ├── _layout.tsx         # Fullscreen modal layout (gestureEnabled: false, Android back guard)
+│       ├── ice-cat.tsx         # Riddle 1: Break the Ice Cat
+│       ├── gyro-maze.tsx       # Riddle 2: Gyroscope Maze (placeholder — #3)
+│       └── color-match.tsx     # Riddle 3: Color Match
 ├── components/
+│   ├── IceCatIllustration.tsx  # Skia vector cat with frozen/thawing/freed states
 │   ├── IceOverlayCanvas.tsx    # Skia crack & frost rendering layer
-│   └── MazeCanvas.tsx          # Skia renderer for Matter.js bodies
+│   ├── TimePickerModal.tsx     # Custom 24h hour/minute picker modal
+│   └── color-match-camera.tsx  # Expo Camera pixel sampler & permission UI
 ├── hooks/
-│   ├── useShakeDetector.ts     # Accelerometer magnitude hook
-│   └── useTiltGravity.ts       # Accelerometer X/Y tilt vector hook
-├── services/
-│   ├── appBlocker.android.ts   # Stub/Wrapper for Android UsageStats & Overlay
-│   └── appBlocker.ios.ts       # No-op implementation for iOS
-└── store/
-    └── useMorningStore.ts      # Zustand + MMKV store
+│   ├── use-color-calculations.ts # Complementary HSL generator & similarity scorer
+│   └── useShakeDetector.ts     # Accelerometer magnitude hook
+├── store/
+│   └── useMorningStore.ts      # Zustand + MMKV store (with in-memory fallback)
+└── utils/
+    └── notifications.ts        # Daily wake-up notification scheduler
 ```
 
 ---
@@ -129,10 +131,10 @@ gh run view --log-failed
 | :--- | :--- | :--- | :--- |
 | **Week 1** | `2026-10-12` – `2026-10-18` | ✅ Completed | Project bootstrap, Expo SDK 58 & New Architecture upgrade (`UIScene` lifecycle support), GitHub Actions CI pipeline (`quality` + `bundle-and-prebuild`), `@swmansion/argent` MCP setup, initial Expo Router navigation & placeholder screens ([PR #2](https://github.com/ReptilianEye/morning-shield/pull/2)), and backlog issues ([#1](https://github.com/ReptilianEye/morning-shield/issues/1), [#3](https://github.com/ReptilianEye/morning-shield/issues/3), [#4](https://github.com/ReptilianEye/morning-shield/issues/4), [#5](https://github.com/ReptilianEye/morning-shield/issues/5)). |
 | **Week 2** | `2026-10-19` – `2026-10-25` | ✅ Completed | Working on implementing Ice Cat and Color Match riddles. |
-| **Week 3** | `2026-10-26` – `2026-11-01` | 🎞️ Ongoing | Color Match riddle. |
-| **Week 4** | `2026-11-02` – `2026-11-08` | ⏳ Upcoming | _Update slot — add weekly progress notes here._ |
-| **Week 5** | `2026-11-09` – `2026-11-15` | ⏳ Upcoming | _Update slot — add weekly progress notes here._ |
-| **Week 6** | `2026-11-16` – `2026-11-22` | ⏳ Upcoming | _Update slot — add weekly progress notes here._ |
+| **Week 3** | `2026-10-26` – `2026-11-01` | ✅ Completed | Color Match riddle implementation ([PR #7](https://github.com/ReptilianEye/morning-shield/pull/7)). |
+| **Week 4** | `2026-11-02` – `2026-11-08` | ✅ Completed | Merged Ice Cat riddle into `main` ([PR #6](https://github.com/ReptilianEye/morning-shield/pull/6)) and opened draft Settings & Morning Store prototype ([PR #8](https://github.com/ReptilianEye/morning-shield/pull/8)). |
+| **Week 5** | `2026-11-09` – `2026-11-15` | 🎞️ Ongoing | Initial draft and first testing of the Gyro Maze riddle ([#3](https://github.com/ReptilianEye/morning-shield/issues/3)) — not yet merged into the codebase. |
+| **Week 6** | `2026-11-16` – `2026-11-22` | ✅ Completed | UI polish across Home, Ice Cat (Skia cat character), and Color Match; implemented `useMorningStore` (Zustand + MMKV), Settings modal, custom minute `TimePickerModal`, automatic morning lock redirect & back guard, daily wake-up notification scheduling, config plugins in `app.config.ts`, standalone iOS/Android USB device install guide (`docs/device-install.md`), simulator screenshots ([PR #11](https://github.com/ReptilianEye/morning-shield/pull/11)), and backlog issues ([#9](https://github.com/ReptilianEye/morning-shield/issues/9), [#10](https://github.com/ReptilianEye/morning-shield/issues/10)). |
 | **Week 7** | `2026-11-23` – `2026-11-29` | ⏳ Upcoming | _Update slot — add weekly progress notes here._ |
 | **Week 8** | `2026-11-30` – `2026-12-06` | ⏳ Upcoming | _Update slot — add weekly progress notes here._ |
 | **Week 9** | `2026-12-07` – `2026-12-13` | ⏳ Upcoming | _Update slot — add weekly progress notes here._ |
@@ -146,5 +148,6 @@ gh run view --log-failed
 
 Detailed project documentation is maintained in the [`docs/`](./docs/README.md) directory:
 - **[Setup & Agent Skills](./docs/setup-and-skills.md)** — Curated Expo, Callstack & Argent React Native agent skills and environment setup.
+- **[Standalone Device Install Guide](./docs/device-install.md)** — Installing standalone Release builds on physical iOS and Android devices over USB (no Metro/Expo server required).
 - **[Features & Architecture](./docs/features.md)** — Detailed specifications and implementation checklist.
 - **[Lessons Learned](./docs/lessons-learned.md)** — Expo SDK 58 / React Native 0.88 troubleshooting notes and architectural lessons.

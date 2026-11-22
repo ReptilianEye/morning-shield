@@ -1,74 +1,151 @@
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { LayoutChangeEvent, Pressable, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
-import { runOnJS } from 'react-native-reanimated';
+import Animated, {
+  runOnJS,
+  useAnimatedStyle,
+  useSharedValue,
+  withRepeat,
+  withSequence,
+  withTiming,
+} from 'react-native-reanimated';
 import { router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
+import { SymbolView } from 'expo-symbols';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { MaxContentWidth, Spacing } from '@/constants/theme';
+import { useTheme } from '@/hooks/use-theme';
 import { useShakeDetector } from '@/hooks/useShakeDetector';
 import { IceOverlayCanvas, ImpactPoint } from '@/components/IceOverlayCanvas';
+import { IceCatIllustration } from '@/components/IceCatIllustration';
+import { getLocalDateKey, isWithinWakeWindow, useMorningStore } from '@/store/useMorningStore';
 
 interface WeakSpot {
   id: string;
-  xPercent: number; // 0.0 to 1.0 (relative to canvas width)
-  yPercent: number; // 0.0 to 1.0 (relative to canvas height)
+  xPercent: number;
+  yPercent: number;
 }
 
 const INITIAL_WEAK_SPOTS: WeakSpot[] = [
-  { id: 'ws-1', xPercent: 0.3, yPercent: 0.35 },
-  { id: 'ws-2', xPercent: 0.72, yPercent: 0.42 },
-  { id: 'ws-3', xPercent: 0.5, yPercent: 0.7 },
+  { id: 'ws-1', xPercent: 0.23, yPercent: 0.22 },
+  { id: 'ws-2', xPercent: 0.78, yPercent: 0.34 },
+  { id: 'ws-3', xPercent: 0.5, yPercent: 0.88 },
 ];
 
-const WEAK_SPOT_HIT_RADIUS = 36;
+const WEAK_SPOT_HIT_RADIUS = 42;
 const SHAKE_DAMAGE = 15;
 const WEAK_SPOT_DAMAGE = 25;
 const CHIP_DAMAGE = 5;
 
+function PulsingWeakSpot({ x, y }: { x: number; y: number }) {
+  const pulse = useSharedValue(1);
+
+  useEffect(() => {
+    pulse.value = withRepeat(
+      withSequence(
+        withTiming(1.18, { duration: 750 }),
+        withTiming(0.95, { duration: 750 })
+      ),
+      -1,
+      true
+    );
+  }, [pulse]);
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: pulse.value }],
+  }));
+
+  return (
+    <Animated.View
+      pointerEvents="none"
+      style={[
+        styles.weakSpotMarker,
+        animatedStyle,
+        {
+          left: x - 22,
+          top: y - 22,
+        },
+      ]}>
+      <View style={styles.weakSpotOuterRing} />
+      <View style={styles.weakSpotInnerCore} />
+    </Animated.View>
+  );
+}
+
 export default function IceCatRiddleScreen() {
+  const theme = useTheme();
+  const markRiddleSolved = useMorningStore((state) => state.markRiddleSolved);
+  const shieldEnabled = useMorningStore((state) => state.shieldEnabled);
+  const wakeWindow = useMorningStore((state) => state.wakeWindow);
+  const lastSolvedDate = useMorningStore((state) => state.lastSolvedDate);
+  const isLockedMode =
+    shieldEnabled && isWithinWakeWindow(wakeWindow) && lastSolvedDate !== getLocalDateKey();
   const [iceHealth, setIceHealth] = useState(100);
   const [impactPoints, setImpactPoints] = useState<ImpactPoint[]>([]);
   const [weakSpots, setWeakSpots] = useState<WeakSpot[]>(INITIAL_WEAK_SPOTS);
   const [canvasDimensions, setCanvasDimensions] = useState({ width: 0, height: 0 });
-  const [lastActionMessage, setLastActionMessage] = useState('Shake your phone or tap weak spots!');
+  const [statusMessage, setStatusMessage] = useState(
+    'Shake your phone or tap the glowing weak spots to crack the ice.'
+  );
 
+  const joltX = useSharedValue(0);
   const isBroken = iceHealth <= 0;
 
-  // Handle canvas layout to obtain exact pixel dimensions for Skia rendering
+  useEffect(() => {
+    if (isBroken) {
+      markRiddleSolved();
+    }
+  }, [isBroken, markRiddleSolved]);
+
+  const triggerJolt = useCallback(
+    (intensity: number) => {
+      joltX.set(
+        withSequence(
+          withTiming(-intensity, { duration: 40 }),
+          withTiming(intensity, { duration: 40 }),
+          withTiming(-intensity * 0.5, { duration: 40 }),
+          withTiming(0, { duration: 40 })
+        )
+      );
+    },
+    [joltX]
+  );
+
+  const arenaAnimatedStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: joltX.value }],
+  }));
+
   const handleCanvasLayout = useCallback((event: LayoutChangeEvent) => {
     const { width, height } = event.nativeEvent.layout;
     setCanvasDimensions({ width, height });
   }, []);
 
-  // Damage helper
   const applyDamage = useCallback((amount: number, reason: string) => {
     setIceHealth((prevHealth) => {
       const nextHealth = Math.max(0, prevHealth - amount);
       if (nextHealth === 0 && prevHealth > 0) {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
-        setLastActionMessage('🎉 ICE SHATTERED! The AI Cat is free!');
+        setStatusMessage('You freed the cat! Morning shield is ready to unlock.');
       } else {
-        setLastActionMessage(reason);
+        setStatusMessage(reason);
       }
       return nextHealth;
     });
   }, []);
 
-  // 1. Shake interaction
   const handleShake = useCallback(() => {
     if (iceHealth <= 0) return;
 
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy).catch(() => {});
+    triggerJolt(7);
 
-    // Spawn a shake crack near center or random spot
     const { width, height } = canvasDimensions;
     if (width > 0 && height > 0) {
-      const shakeX = width * (0.3 + Math.random() * 0.4);
-      const shakeY = height * (0.3 + Math.random() * 0.4);
+      const shakeX = width * (0.28 + Math.random() * 0.44);
+      const shakeY = height * (0.28 + Math.random() * 0.44);
 
       setImpactPoints((prev) => [
         ...prev,
@@ -76,16 +153,15 @@ export default function IceCatRiddleScreen() {
           id: `shake-${Date.now()}-${prev.length}`,
           x: shakeX,
           y: shakeY,
-          radius: 120 + Math.random() * 30,
+          radius: 125 + Math.random() * 35,
           branches: 7,
         },
       ]);
     }
 
-    applyDamage(SHAKE_DAMAGE, '💥 Strong Shake detected! -15 Ice Health');
-  }, [iceHealth, canvasDimensions, applyDamage]);
+    applyDamage(SHAKE_DAMAGE, 'Big crack from shaking! Keep going.');
+  }, [iceHealth, canvasDimensions, applyDamage, triggerJolt]);
 
-  // Hook up accelerometer shake detector
   useShakeDetector({
     onShake: handleShake,
     threshold: 2.2,
@@ -94,7 +170,6 @@ export default function IceCatRiddleScreen() {
     enabled: !isBroken,
   });
 
-  // 2. Tap gesture interaction (react-native-gesture-handler v2)
   const handleTap = useCallback(
     (tapX: number, tapY: number) => {
       if (iceHealth <= 0) return;
@@ -102,31 +177,27 @@ export default function IceCatRiddleScreen() {
       const { width, height } = canvasDimensions;
       if (width <= 0 || height <= 0) return;
 
-      // Check if tap hit any active weak-spot
       let hitWeakSpotIndex = -1;
       for (let i = 0; i < weakSpots.length; i++) {
         const spotX = weakSpots[i].xPercent * width;
         const spotY = weakSpots[i].yPercent * height;
-        const distance = Math.hypot(tapX - spotX, tapY - spotY);
-
-        if (distance <= WEAK_SPOT_HIT_RADIUS) {
+        if (Math.hypot(tapX - spotX, tapY - spotY) <= WEAK_SPOT_HIT_RADIUS) {
           hitWeakSpotIndex = i;
           break;
         }
       }
 
       if (hitWeakSpotIndex !== -1) {
-        // Critical hit on weak spot!
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy).catch(() => {});
+        triggerJolt(6);
 
-        // Move the hit weak spot to a new random location
         setWeakSpots((prev) =>
           prev.map((spot, index) =>
             index === hitWeakSpotIndex
               ? {
                   ...spot,
-                  xPercent: 0.15 + Math.random() * 0.7,
-                  yPercent: 0.2 + Math.random() * 0.6,
+                  xPercent: 0.16 + Math.random() * 0.68,
+                  yPercent: 0.18 + Math.random() * 0.64,
                 }
               : spot
           )
@@ -138,15 +209,15 @@ export default function IceCatRiddleScreen() {
             id: `weakspot-${Date.now()}-${prev.length}`,
             x: tapX,
             y: tapY,
-            radius: 110,
+            radius: 115,
             branches: 6,
           },
         ]);
 
-        applyDamage(WEAK_SPOT_DAMAGE, '🎯 Weak-spot struck! -25 Ice Health');
+        applyDamage(WEAK_SPOT_DAMAGE, 'Direct hit on a weak spot!');
       } else {
-        // Regular chip tap outside weak spots
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+        triggerJolt(2.5);
 
         setImpactPoints((prev) => [
           ...prev,
@@ -154,18 +225,17 @@ export default function IceCatRiddleScreen() {
             id: `tap-${Date.now()}-${prev.length}`,
             x: tapX,
             y: tapY,
-            radius: 50,
+            radius: 52,
             branches: 4,
           },
         ]);
 
-        applyDamage(CHIP_DAMAGE, '⛏️ Chipping ice... -5 Ice Health');
+        applyDamage(CHIP_DAMAGE, 'Aim for the glowing rings for bigger cracks.');
       }
     },
-    [iceHealth, canvasDimensions, weakSpots, applyDamage]
+    [iceHealth, canvasDimensions, weakSpots, applyDamage, triggerJolt]
   );
 
-  // Configure Gesture.Tap()
   const tapGesture = useMemo(() => {
     return Gesture.Tap()
       .enabled(!isBroken)
@@ -174,101 +244,159 @@ export default function IceCatRiddleScreen() {
       });
   }, [isBroken, handleTap]);
 
-  // Reset helper for testing
   const handleReset = useCallback(() => {
     setIceHealth(100);
     setImpactPoints([]);
     setWeakSpots(INITIAL_WEAK_SPOTS);
-    setLastActionMessage('Ice block restored! Shake or tap weak spots.');
+    setStatusMessage('Shake your phone or tap the glowing weak spots to crack the ice.');
   }, []);
+
+  const progressColor = isBroken
+    ? theme.success
+    : iceHealth > 50
+      ? '#0EA5E9'
+      : iceHealth > 25
+        ? '#F59E0B'
+        : '#EF4444';
 
   return (
     <ThemedView style={styles.container}>
       <SafeAreaView style={styles.safeArea}>
-        {/* Screen Header */}
-        <View style={styles.header}>
-          <View style={styles.headerTopRow}>
-            <ThemedText type="code" themeColor="textSecondary">
-              RIDDLE 1 • HARDWARE & SKIA
-            </ThemedText>
+        {/* Top Bar */}
+        <View style={styles.topBar}>
+          {isLockedMode && !isBroken ? (
+            <View
+              style={[
+                styles.navPill,
+                { backgroundColor: theme.card, borderColor: theme.border },
+              ]}>
+              <SymbolView
+                name={{ ios: 'lock.fill' }}
+                size={13}
+                tintColor={theme.textSecondary}
+                fallback={<ThemedText type="smallBold">🔒</ThemedText>}
+              />
+              <ThemedText type="smallBold" themeColor="textSecondary">
+                Locked
+              </ThemedText>
+            </View>
+          ) : (
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel="Reset riddle"
-              onPress={handleReset}
-              style={({ pressed }) => [styles.resetPill, pressed && styles.pressed]}>
-              <ThemedText type="code">↻ Reset</ThemedText>
+              accessibilityLabel="Back to home"
+              onPress={() => router.back()}
+              style={({ pressed }) => [
+                styles.navPill,
+                { backgroundColor: theme.card, borderColor: theme.border },
+                pressed && styles.pressed,
+              ]}>
+              <SymbolView
+                name={{ ios: 'chevron.left' }}
+                size={14}
+                tintColor={theme.text}
+                fallback={<ThemedText type="smallBold">‹</ThemedText>}
+              />
+              <ThemedText type="smallBold">Back</ThemedText>
             </Pressable>
-          </View>
-          <ThemedText type="title">🧊 Break the Ice Cat</ThemedText>
+          )}
+
+          <ThemedText type="eyebrow" themeColor="textSecondary">
+            CHALLENGE 1
+          </ThemedText>
+
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Reset ice block"
+            onPress={handleReset}
+            style={({ pressed }) => [
+              styles.navPill,
+              { backgroundColor: theme.card, borderColor: theme.border },
+              pressed && styles.pressed,
+            ]}>
+            <SymbolView
+              name={{ ios: 'arrow.counterclockwise' }}
+              size={13}
+              tintColor={theme.text}
+              fallback={<ThemedText type="smallBold">↻</ThemedText>}
+            />
+            <ThemedText type="smallBold">Reset</ThemedText>
+          </Pressable>
+        </View>
+
+        {/* Title & Subtitle */}
+        <View style={styles.header}>
+          <ThemedText type="title">Break the Ice Cat</ThemedText>
           <ThemedText type="small" themeColor="textSecondary">
-            {lastActionMessage}
+            {statusMessage}
           </ThemedText>
         </View>
 
-        {/* Ice Health Progress Bar */}
-        <View style={styles.healthContainer}>
-          <View style={styles.healthLabelRow}>
+        {/* Ice Progress Card */}
+        <View
+          style={[
+            styles.progressCard,
+            { backgroundColor: theme.card, borderColor: theme.border },
+          ]}>
+          <View style={styles.progressLabelRow}>
             <ThemedText type="smallBold">
-              {isBroken ? '🎉 ICE SHATTERED' : `Ice Integrity: ${iceHealth}%`}
+              {isBroken ? 'Ice Shattered' : 'Ice Remaining'}
             </ThemedText>
-            <ThemedText type="code" themeColor="textSecondary">
-              {isBroken ? '100% FREED' : `${iceHealth} / 100 HP`}
+            <ThemedText type="smallBold" style={{ color: progressColor }}>
+              {isBroken ? 'Free!' : `${iceHealth}%`}
             </ThemedText>
           </View>
-          <View style={styles.healthTrack}>
+          <View style={[styles.progressTrack, { backgroundColor: theme.backgroundSelected }]}>
             <View
               style={[
-                styles.healthFill,
+                styles.progressFill,
                 {
-                  width: `${iceHealth}%`,
-                  backgroundColor:
-                    iceHealth > 50 ? '#00b0ff' : iceHealth > 25 ? '#ff9100' : '#ff1744',
+                  width: `${isBroken ? 100 : iceHealth}%`,
+                  backgroundColor: progressColor,
                 },
               ]}
             />
           </View>
         </View>
 
-        {/* Interactive Riddle Playground Area */}
-        <View style={styles.canvasContainer} onLayout={handleCanvasLayout}>
+        {/* Interactive Ice Block Arena */}
+        <Animated.View
+          style={[
+            styles.canvasContainer,
+            arenaAnimatedStyle,
+            isBroken ? styles.canvasFreed : styles.canvasFrozen,
+          ]}
+          onLayout={handleCanvasLayout}>
           <GestureDetector gesture={tapGesture}>
             <View style={styles.canvasInteractiveArea}>
-              {/* Underlying AI Cat Character Illustration */}
-              <View style={styles.catIllustrationContainer}>
-                <ThemedText style={styles.catEmoji}>
-                  {isBroken ? '😸' : iceHealth < 40 ? '😿' : '🥶'}
-                </ThemedText>
-                <ThemedText type="subtitle">
-                  {isBroken ? 'Warm AI Cat Awakened!' : 'Cyber Cat Trapped in Frost'}
-                </ThemedText>
-                <ThemedText type="small" themeColor="textSecondary" style={styles.catSubtext}>
+              <View style={styles.catStage}>
+                <IceCatIllustration iceHealth={iceHealth} size={210} />
+                <ThemedText type="subtitle" style={styles.catTitle}>
                   {isBroken
-                    ? 'Thank you for breaking the morning chill! You are ready to start your day.'
-                    : 'The cold ice block is preventing wake-up. Shake device or strike glowing markers!'}
+                    ? 'Warm & Awake!'
+                    : iceHealth <= 50
+                      ? 'Almost Free!'
+                      : 'Chilly Cat Inside'}
+                </ThemedText>
+                <ThemedText type="small" style={styles.catSubtext}>
+                  {isBroken
+                    ? 'Great job breaking the morning chill.'
+                    : 'Keep cracking the frost to warm them up.'}
                 </ThemedText>
               </View>
 
-              {/* Weak-Spot Targets (Only visible when ice still has health) */}
+              {/* Pulsing Weak-Spot Targets */}
               {!isBroken &&
                 canvasDimensions.width > 0 &&
                 canvasDimensions.height > 0 &&
                 weakSpots.map((spot) => (
-                  <View
+                  <PulsingWeakSpot
                     key={spot.id}
-                    pointerEvents="none"
-                    style={[
-                      styles.weakSpotMarker,
-                      {
-                        left: spot.xPercent * canvasDimensions.width - 20,
-                        top: spot.yPercent * canvasDimensions.height - 20,
-                      },
-                    ]}>
-                    <View style={styles.weakSpotRing} />
-                    <View style={styles.weakSpotCenter} />
-                  </View>
+                    x={spot.xPercent * canvasDimensions.width}
+                    y={spot.yPercent * canvasDimensions.height}
+                  />
                 ))}
 
-              {/* Skia Procedural Crack & Frost Layer */}
+              {/* Frost & Procedural Crack Layer */}
               {canvasDimensions.width > 0 && canvasDimensions.height > 0 && (
                 <IceOverlayCanvas
                   width={canvasDimensions.width}
@@ -279,38 +407,56 @@ export default function IceCatRiddleScreen() {
               )}
             </View>
           </GestureDetector>
-        </View>
+        </Animated.View>
 
-        {/* Action Controls & Navigation */}
+        {/* Clean Footer */}
         <View style={styles.footer}>
           {isBroken ? (
             <Pressable
               accessibilityRole="button"
               onPress={() => router.back()}
-              style={({ pressed }) => [styles.finishButton, pressed && styles.pressed]}>
+              style={({ pressed }) => [
+                styles.finishButton,
+                { backgroundColor: theme.success },
+                pressed && styles.pressed,
+              ]}>
               <ThemedText type="smallBold" style={styles.finishButtonText}>
-                ✨ Morning State Unlocked — Return Home
+                Start Your Day
               </ThemedText>
+              <SymbolView
+                name={{ ios: 'arrow.right' }}
+                size={15}
+                tintColor="#FFFFFF"
+                fallback={<ThemedText style={styles.finishButtonText}>→</ThemedText>}
+              />
             </Pressable>
           ) : (
-            <View style={styles.instructionsRow}>
-              <ThemedText type="code" style={styles.instructionPill}>
-                📱 Shake &gt; 2.2g (-15 HP)
-              </ThemedText>
-              <ThemedText type="code" style={styles.instructionPill}>
-                🎯 Tap Target (-25 HP)
-              </ThemedText>
+            <View
+              style={[
+                styles.hintBar,
+                { backgroundColor: theme.card, borderColor: theme.border },
+              ]}>
+              <View style={styles.hintItem}>
+                <SymbolView
+                  name={{ ios: 'iphone.radiowaves.left.and.right' }}
+                  size={16}
+                  tintColor={theme.accent}
+                  fallback={<ThemedText>📱</ThemedText>}
+                />
+                <ThemedText type="smallBold">Shake phone</ThemedText>
+              </View>
+              <View style={[styles.hintDivider, { backgroundColor: theme.border }]} />
+              <View style={styles.hintItem}>
+                <SymbolView
+                  name={{ ios: 'hand.tap.fill' }}
+                  size={16}
+                  tintColor="#F59E0B"
+                  fallback={<ThemedText>🎯</ThemedText>}
+                />
+                <ThemedText type="smallBold">Tap glowing spots</ThemedText>
+              </View>
             </View>
           )}
-
-          <Pressable
-            accessibilityRole="button"
-            onPress={() => router.back()}
-            style={({ pressed }) => [styles.backButton, pressed && styles.pressed]}>
-            <ThemedView type="backgroundElement" style={styles.backButtonInner}>
-              <ThemedText type="smallBold">← Back to Landing Screen</ThemedText>
-            </ThemedView>
-          </Pressable>
         </View>
       </SafeAreaView>
     </ThemedView>
@@ -326,50 +472,62 @@ const styles = StyleSheet.create({
     flex: 1,
     width: '100%',
     maxWidth: MaxContentWidth,
-    padding: Spacing.four,
+    paddingHorizontal: Spacing.three,
+    paddingTop: Spacing.two,
+    paddingBottom: Spacing.three,
+    gap: Spacing.three,
+  },
+  topBar: {
+    flexDirection: 'row',
     justifyContent: 'space-between',
-    gap: Spacing.two,
+    alignItems: 'center',
+  },
+  navPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingVertical: 7,
+    paddingHorizontal: 12,
+    borderRadius: 999,
+    borderWidth: StyleSheet.hairlineWidth,
   },
   header: {
-    gap: Spacing.half,
+    gap: 4,
   },
-  headerTopRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  resetPill: {
-    paddingVertical: 4,
-    paddingHorizontal: 8,
-    borderRadius: 8,
+  progressCard: {
+    paddingHorizontal: Spacing.three,
+    paddingVertical: 12,
+    borderRadius: 16,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(150, 150, 150, 0.4)',
+    gap: 8,
   },
-  healthContainer: {
-    gap: 6,
-  },
-  healthLabelRow: {
+  progressLabelRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
   },
-  healthTrack: {
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: 'rgba(150, 150, 150, 0.25)',
+  progressTrack: {
+    height: 8,
+    borderRadius: 999,
     overflow: 'hidden',
   },
-  healthFill: {
+  progressFill: {
     height: '100%',
-    borderRadius: 5,
+    borderRadius: 999,
   },
   canvasContainer: {
     flex: 1,
-    borderRadius: Spacing.four,
+    borderRadius: 24,
     overflow: 'hidden',
-    backgroundColor: 'rgba(20, 30, 45, 0.85)',
     borderWidth: 1.5,
-    borderColor: 'rgba(100, 180, 240, 0.3)',
+  },
+  canvasFrozen: {
+    backgroundColor: '#0F1E33',
+    borderColor: 'rgba(125, 211, 252, 0.45)',
+  },
+  canvasFreed: {
+    backgroundColor: '#1E1B2E',
+    borderColor: 'rgba(251, 191, 36, 0.55)',
   },
   canvasInteractiveArea: {
     flex: 1,
@@ -377,78 +535,79 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  catIllustrationContainer: {
+  catStage: {
     alignItems: 'center',
     justifyContent: 'center',
-    padding: Spacing.four,
-    gap: Spacing.two,
+    paddingHorizontal: Spacing.four,
+    gap: 6,
   },
-  catEmoji: {
-    fontSize: 90,
+  catTitle: {
+    color: '#F8FAFC',
+    textAlign: 'center',
   },
   catSubtext: {
+    color: 'rgba(226, 232, 240, 0.85)',
     textAlign: 'center',
-    maxWidth: 260,
+    maxWidth: 250,
   },
   weakSpotMarker: {
     position: 'absolute',
+    width: 44,
+    height: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 15,
+  },
+  weakSpotOuterRing: {
+    position: 'absolute',
     width: 40,
     height: 40,
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 5,
+    borderRadius: 20,
+    borderWidth: 2.5,
+    borderColor: '#FDE047',
+    backgroundColor: 'rgba(253, 224, 71, 0.22)',
   },
-  weakSpotRing: {
-    position: 'absolute',
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    borderWidth: 2,
-    borderColor: '#ffeb3b',
-    backgroundColor: 'rgba(255, 235, 59, 0.2)',
-  },
-  weakSpotCenter: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: '#fff',
+  weakSpotInnerCore: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: '#FEF9C3',
   },
   footer: {
-    gap: Spacing.two,
+    paddingTop: 2,
   },
-  instructionsRow: {
+  hintBar: {
     flexDirection: 'row',
-    justifyContent: 'center',
-    gap: Spacing.two,
+    alignItems: 'center',
+    justifyContent: 'space-evenly',
+    paddingVertical: 12,
+    paddingHorizontal: Spacing.three,
+    borderRadius: 16,
+    borderWidth: StyleSheet.hairlineWidth,
   },
-  instructionPill: {
-    fontSize: 12,
-    paddingVertical: 4,
-    paddingHorizontal: 8,
-    borderRadius: 6,
-    backgroundColor: 'rgba(100, 180, 255, 0.15)',
-    color: '#80d8ff',
+  hintItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  hintDivider: {
+    width: StyleSheet.hairlineWidth,
+    height: 18,
   },
   finishButton: {
-    backgroundColor: '#00e676',
-    paddingVertical: Spacing.three,
-    paddingHorizontal: Spacing.four,
-    borderRadius: Spacing.three,
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 15,
+    paddingHorizontal: Spacing.four,
+    borderRadius: 16,
   },
   finishButtonText: {
-    color: '#000',
-  },
-  backButton: {
-    borderRadius: Spacing.three,
-  },
-  backButtonInner: {
-    paddingVertical: Spacing.three,
-    paddingHorizontal: Spacing.four,
-    borderRadius: Spacing.three,
-    alignItems: 'center',
+    color: '#FFFFFF',
+    fontSize: 16,
   },
   pressed: {
-    opacity: 0.75,
+    opacity: 0.78,
   },
 });
