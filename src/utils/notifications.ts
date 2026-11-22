@@ -4,6 +4,17 @@ import * as Notifications from 'expo-notifications';
 import { formatTime24, WakeWindow } from '@/store/useMorningStore';
 
 const WAKEUP_NOTIFICATION_ID = 'morning-shield-wakeup-reminder';
+export const MORNING_REMINDER_ACTION = 'open-challenge';
+
+export function isMorningReminderResponse(
+  response: Notifications.NotificationResponse | null | undefined
+): response is Notifications.NotificationResponse {
+  if (!response) return false;
+  if (response.actionIdentifier !== Notifications.DEFAULT_ACTION_IDENTIFIER) {
+    return false;
+  }
+  return response.notification.request.content.data?.action === MORNING_REMINDER_ACTION;
+}
 
 let handlerConfigured = false;
 
@@ -72,6 +83,9 @@ export async function syncWakeUpNotification(options: {
         title: 'Time to unlock your morning',
         body: 'Complete your MorningShield challenge to start your day distraction-free.',
         sound: true,
+        data: {
+          action: MORNING_REMINDER_ACTION,
+        },
       },
       trigger: {
         type: Notifications.SchedulableTriggerInputTypes.DAILY,
