@@ -29,19 +29,45 @@ const TILE_SIZE = 50;
 const ARENA_PADDING = 14;
 const CELL_MARGIN = 4;
 
+type SequenceContentMode = 'numbers' | 'letters';
 type SequenceDirection = 'asc' | 'desc';
 
-interface NumberTile {
-  value: number;
+const NUMBER_VALUES = Array.from({ length: TOTAL_TILES }, (_, i) => String(i + 1));
+const LETTER_VALUES = Array.from({ length: TOTAL_TILES }, (_, i) =>
+  String.fromCharCode(65 + i)
+);
+
+interface SequenceTile {
+  value: string;
   x: number;
   y: number;
 }
 
+function getOrderedSequence(
+  mode: SequenceContentMode,
+  direction: SequenceDirection
+): string[] {
+  const base = mode === 'numbers' ? NUMBER_VALUES : LETTER_VALUES;
+  return direction === 'asc' ? base : [...base].reverse();
+}
+
+function pickRandomMode(): SequenceContentMode {
+  return Math.random() < 0.5 ? 'numbers' : 'letters';
+}
+
+function pickRandomDirection(): SequenceDirection {
+  return Math.random() < 0.5 ? 'asc' : 'desc';
+}
+
 /**
- * Places 20 shuffled numbers across a 4x6 jittered grid (choosing 20 of 24 cells)
+ * Places 20 shuffled number or letter tiles across a 4x6 jittered grid (choosing 20 of 24 cells)
  * so tiles scatter organically in 2D without ever overlapping.
  */
-function generateShuffledTiles(width: number, height: number): NumberTile[] {
+function generateShuffledTiles(
+  width: number,
+  height: number,
+  mode: SequenceContentMode
+): SequenceTile[] {
   const cols = 4;
   const rows = 6;
   const innerW = Math.max(TILE_SIZE * cols, width - ARENA_PADDING * 2);
@@ -61,7 +87,7 @@ function generateShuffledTiles(width: number, height: number): NumberTile[] {
     [cells[i], cells[j]] = [cells[j], cells[i]];
   }
 
-  const values = Array.from({ length: TOTAL_TILES }, (_, i) => i + 1);
+  const values = [...(mode === 'numbers' ? NUMBER_VALUES : LETTER_VALUES)];
   for (let i = values.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
     [values[i], values[j]] = [values[j], values[i]];
@@ -79,13 +105,20 @@ function generateShuffledTiles(width: number, height: number): NumberTile[] {
 }
 
 interface TileViewProps {
-  tile: NumberTile;
+  tile: SequenceTile;
+  contentMode: SequenceContentMode;
   isCleared: boolean;
   isWrongFlash: boolean;
-  onPress: (value: number) => void;
+  onPress: (value: string) => void;
 }
 
-function NumberTileButton({ tile, isCleared, isWrongFlash, onPress }: TileViewProps) {
+function SequenceTileButton({
+  tile,
+  contentMode,
+  isCleared,
+  isWrongFlash,
+  onPress,
+}: TileViewProps) {
   const theme = useTheme();
   const opacity = useSharedValue(1);
   const scale = useSharedValue(1);
@@ -120,6 +153,9 @@ function NumberTileButton({ tile, isCleared, isWrongFlash, onPress }: TileViewPr
     transform: [{ translateX: shakeX.value }, { scale: scale.value }],
   }));
 
+  const tileLabel =
+    contentMode === 'numbers' ? `Number ${tile.value}` : `Letter ${tile.value}`;
+
   return (
     <Animated.View
       pointerEvents={isCleared ? 'none' : 'auto'}
@@ -133,7 +169,7 @@ function NumberTileButton({ tile, isCleared, isWrongFlash, onPress }: TileViewPr
       ]}>
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel={`Number ${tile.value}`}
+        accessibilityLabel={tileLabel}
         disabled={isCleared}
         onPress={() => onPress(tile.value)}
         style={({ pressed }) => [
@@ -146,13 +182,21 @@ function NumberTileButton({ tile, isCleared, isWrongFlash, onPress }: TileViewPr
         ]}>
         <ThemedText
           type="bigger"
-          style={[styles.tileText, isWrongFlash && styles.tileWrongText]}>
+          style={[
+            contentMode === 'numbers' && styles.tileNumberText,
+            isWrongFlash && styles.tileWrongText,
+          ]}>
           {tile.value}
         </ThemedText>
       </Pressable>
     </Animated.View>
   );
 }
+
+const MODE_OPTIONS: { id: SequenceContentMode; badge: string; label: string }[] = [
+  { id: 'numbers', badge: '123', label: 'Numbers' },
+  { id: 'letters', badge: 'ABC', label: 'Letters' },
+];
 
 export default function SequenceTapRiddleScreen() {
   const theme = useTheme();
@@ -167,24 +211,25 @@ export default function SequenceTapRiddleScreen() {
   const { solveResult, completeSolve, resetTimer } = useSolveTimer('sequence-tap');
   const solveStats = useMemo(() => getSolveTimeStats(solveTimes, 'sequence-tap'), [solveTimes]);
 
-  const [direction, setDirection] = useState<SequenceDirection>(() =>
-    Math.random() < 0.5 ? 'asc' : 'desc'
-  );
+  const [contentMode, setContentMode] = useState<SequenceContentMode>(pickRandomMode);
+  const [direction, setDirection] = useState<SequenceDirection>(pickRandomDirection);
   const [arenaSize, setArenaSize] = useState({ width: 0, height: 0 });
-  const [tiles, setTiles] = useState<NumberTile[]>([]);
-  const [clearedValues, setClearedValues] = useState<number[]>([]);
-  const [wrongTileValue, setWrongTileValue] = useState<number | null>(null);
+  const [tiles, setTiles] = useState<SequenceTile[]>([]);
+  const [clearedValues, setClearedValues] = useState<string[]>([]);
+  const [wrongTileValue, setWrongTileValue] = useState<string | null>(null);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const arenaSizeRef = useRef({ width: 0, height: 0 });
+  const contentModeRef = useRef<SequenceContentMode>(contentMode);
   const clearedCountRef = useRef(0);
   const wrongTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  useEffect(() => {
+    contentModeRef.current = contentMode;
+  }, [contentMode]);
+
   const sequence = useMemo(
-    () =>
-      direction === 'asc'
-        ? Array.from({ length: TOTAL_TILES }, (_, i) => i + 1)
-        : Array.from({ length: TOTAL_TILES }, (_, i) => TOTAL_TILES - i),
-    [direction]
+    () => getOrderedSequence(contentMode, direction),
+    [contentMode, direction]
   );
 
   const clearedCount = clearedValues.length;
@@ -217,7 +262,7 @@ export default function SequenceTapRiddleScreen() {
 
     setTiles((prev) => {
       if (prev.length === 0 || clearedCountRef.current === 0) {
-        return generateShuffledTiles(width, height);
+        return generateShuffledTiles(width, height, contentModeRef.current);
       }
       const maxX = Math.max(ARENA_PADDING, width - ARENA_PADDING - TILE_SIZE);
       const maxY = Math.max(ARENA_PADDING, height - ARENA_PADDING - TILE_SIZE);
@@ -230,14 +275,18 @@ export default function SequenceTapRiddleScreen() {
   }, []);
 
   const handleTilePress = useCallback(
-    (value: number) => {
+    (value: string) => {
       if (isCompleted || expectedValue === undefined) return;
 
       if (value === expectedValue) {
         const nextCount = clearedCount + 1;
         if (nextCount >= TOTAL_TILES) {
           Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
-          setStatusMessage('All numbers cleared! Your morning shield is ready to unlock.');
+          setStatusMessage(
+            contentMode === 'numbers'
+              ? 'All numbers cleared! Your morning shield is ready to unlock.'
+              : 'All letters cleared! Your morning shield is ready to unlock.'
+          );
           markRiddleSolved();
           completeSolve();
         } else {
@@ -249,11 +298,19 @@ export default function SequenceTapRiddleScreen() {
       } else {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error).catch(() => {});
         setWrongTileValue(value);
-        setStatusMessage(
-          direction === 'asc'
-            ? 'Wrong number — keep tapping in ascending order.'
-            : 'Wrong number — keep tapping in descending order.'
-        );
+        if (contentMode === 'numbers') {
+          setStatusMessage(
+            direction === 'asc'
+              ? 'Wrong number — keep tapping in ascending order.'
+              : 'Wrong number — keep tapping in descending order.'
+          );
+        } else {
+          setStatusMessage(
+            direction === 'asc'
+              ? 'Wrong letter — keep tapping in alphabetical order.'
+              : 'Wrong letter — keep tapping in reverse alphabetical order.'
+          );
+        }
 
         if (wrongTimerRef.current) {
           clearTimeout(wrongTimerRef.current);
@@ -263,11 +320,41 @@ export default function SequenceTapRiddleScreen() {
         }, 380);
       }
     },
-    [clearedCount, completeSolve, direction, expectedValue, isCompleted, markRiddleSolved]
+    [clearedCount, completeSolve, contentMode, direction, expectedValue, isCompleted, markRiddleSolved]
+  );
+
+  const handleSelectMode = useCallback(
+    (nextMode: SequenceContentMode) => {
+      if (nextMode === contentMode) return;
+      Haptics.selectionAsync().catch(() => {});
+      if (wrongTimerRef.current) {
+        clearTimeout(wrongTimerRef.current);
+        wrongTimerRef.current = null;
+      }
+      contentModeRef.current = nextMode;
+      setContentMode(nextMode);
+      setClearedValues([]);
+      setWrongTileValue(null);
+      setStatusMessage(null);
+      resetTimer();
+
+      const { width, height } = arenaSizeRef.current;
+      if (width > 0 && height > 0) {
+        setTiles(generateShuffledTiles(width, height, nextMode));
+      }
+    },
+    [contentMode, resetTimer]
   );
 
   const handleReset = useCallback(() => {
-    const nextDirection: SequenceDirection = Math.random() < 0.5 ? 'asc' : 'desc';
+    const nextMode = pickRandomMode();
+    const nextDirection = pickRandomDirection();
+    if (wrongTimerRef.current) {
+      clearTimeout(wrongTimerRef.current);
+      wrongTimerRef.current = null;
+    }
+    contentModeRef.current = nextMode;
+    setContentMode(nextMode);
     setDirection(nextDirection);
     setClearedValues([]);
     setWrongTileValue(null);
@@ -276,14 +363,41 @@ export default function SequenceTapRiddleScreen() {
 
     const { width, height } = arenaSizeRef.current;
     if (width > 0 && height > 0) {
-      setTiles(generateShuffledTiles(width, height));
+      setTiles(generateShuffledTiles(width, height, nextMode));
     }
   }, [resetTimer]);
 
   const defaultSubtitle =
-    direction === 'asc'
-      ? `Tap the numbers from 1 to ${TOTAL_TILES} in ascending order.`
-      : `Tap the numbers from ${TOTAL_TILES} down to 1 in descending order.`;
+    contentMode === 'numbers'
+      ? direction === 'asc'
+        ? `Tap the numbers from 1 to ${TOTAL_TILES} in ascending order.`
+        : `Tap the numbers from ${TOTAL_TILES} down to 1 in descending order.`
+      : direction === 'asc'
+        ? 'Tap the letters from A to T in alphabetical order.'
+        : 'Tap the letters from T back to A in reverse alphabetical order.';
+
+  const orderLabel =
+    contentMode === 'numbers'
+      ? direction === 'asc'
+        ? `Ascending (1 → ${TOTAL_TILES})`
+        : `Descending (${TOTAL_TILES} → 1)`
+      : direction === 'asc'
+        ? 'Alphabetical (A → T)'
+        : 'Reverse (T → A)';
+
+  const hintOrderLabel =
+    contentMode === 'numbers'
+      ? direction === 'asc'
+        ? 'Smallest to largest'
+        : 'Largest to smallest'
+      : direction === 'asc'
+        ? 'A to Z order'
+        : 'Z to A order';
+
+  const completionBody =
+    contentMode === 'numbers'
+      ? `You cleared all ${TOTAL_TILES} numbers in ${direction === 'asc' ? 'ascending' : 'descending'} order.`
+      : `You cleared all ${TOTAL_TILES} letters in ${direction === 'asc' ? 'alphabetical' : 'reverse alphabetical'} order.`;
 
   const progressColor = isCompleted ? theme.success : '#0D9488';
 
@@ -334,7 +448,7 @@ export default function SequenceTapRiddleScreen() {
 
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel="Shuffle numbers"
+            accessibilityLabel={contentMode === 'numbers' ? 'Shuffle numbers' : 'Shuffle letters'}
             onPress={handleReset}
             style={({ pressed }) => [
               styles.navPill,
@@ -368,6 +482,48 @@ export default function SequenceTapRiddleScreen() {
             styles.progressCard,
             { backgroundColor: theme.card, borderColor: theme.border },
           ]}>
+          <View
+            accessibilityRole="radiogroup"
+            accessibilityLabel="Sequence mode"
+            style={[
+              styles.modeSegmentedControl,
+              { backgroundColor: theme.backgroundSelected },
+            ]}>
+            {MODE_OPTIONS.map((option) => {
+              const selected = contentMode === option.id;
+              return (
+                <Pressable
+                  key={option.id}
+                  accessibilityRole="radio"
+                  accessibilityState={{ checked: selected }}
+                  accessibilityLabel={`${option.label} mode`}
+                  onPress={() => handleSelectMode(option.id)}
+                  style={({ pressed }) => [
+                    styles.modeSegmentButton,
+                    selected && [
+                      styles.modeSegmentButtonActive,
+                      { backgroundColor: theme.card, borderColor: theme.border },
+                    ],
+                    pressed && !selected && styles.pressed,
+                  ]}>
+                  <ThemedText
+                    type="smallBold"
+                    style={[
+                      styles.modeSegmentBadge,
+                      { color: selected ? '#0D9488' : theme.textSecondary },
+                    ]}>
+                    {option.badge}
+                  </ThemedText>
+                  <ThemedText
+                    type="smallBold"
+                    themeColor={selected ? 'text' : 'textSecondary'}>
+                    {option.label}
+                  </ThemedText>
+                </Pressable>
+              );
+            })}
+          </View>
+
           <View style={styles.progressLabelRow}>
             <View style={styles.orderTag}>
               <SymbolView
@@ -382,11 +538,7 @@ export default function SequenceTapRiddleScreen() {
                   </ThemedText>
                 }
               />
-              <ThemedText type="smallBold">
-                {direction === 'asc'
-                  ? `Ascending (1 → ${TOTAL_TILES})`
-                  : `Descending (${TOTAL_TILES} → 1)`}
-              </ThemedText>
+              <ThemedText type="smallBold">{orderLabel}</ThemedText>
             </View>
             <ThemedText type="smallBold" style={{ color: progressColor }}>
               {isCompleted ? 'Done!' : `${clearedCount} / ${TOTAL_TILES}`}
@@ -405,7 +557,7 @@ export default function SequenceTapRiddleScreen() {
           </View>
         </View>
 
-        {/* 2D Shuffled Number Arena */}
+        {/* 2D Shuffled Tile Arena */}
         <View
           onLayout={handleArenaLayout}
           style={[
@@ -418,7 +570,7 @@ export default function SequenceTapRiddleScreen() {
           {arenaSize.width > 0 &&
             arenaSize.height > 0 &&
             tiles.map((tile) => {
-              const clampedTile: NumberTile = {
+              const clampedTile: SequenceTile = {
                 ...tile,
                 x: Math.max(
                   ARENA_PADDING,
@@ -430,9 +582,10 @@ export default function SequenceTapRiddleScreen() {
                 ),
               };
               return (
-                <NumberTileButton
-                  key={`${direction}-${tile.value}`}
+                <SequenceTileButton
+                  key={`${contentMode}-${direction}-${tile.value}`}
                   tile={clampedTile}
+                  contentMode={contentMode}
                   isCleared={clearedValues.includes(tile.value)}
                   isWrongFlash={wrongTileValue === tile.value}
                   onPress={handleTilePress}
@@ -452,8 +605,7 @@ export default function SequenceTapRiddleScreen() {
               </View>
               <ThemedText type="subtitle">Sequence Complete!</ThemedText>
               <ThemedText type="small" themeColor="textSecondary" style={styles.centerText}>
-                You cleared all {TOTAL_TILES} numbers in{' '}
-                {direction === 'asc' ? 'ascending' : 'descending'} order.
+                {completionBody}
               </ThemedText>
               {solveResult && (
                 <SolveTimeBadge
@@ -500,9 +652,7 @@ export default function SequenceTapRiddleScreen() {
                   tintColor="#0D9488"
                   fallback={<ThemedText>👆</ThemedText>}
                 />
-                <ThemedText type="smallBold">
-                  {direction === 'asc' ? 'Smallest to largest' : 'Largest to smallest'}
-                </ThemedText>
+                <ThemedText type="smallBold">{hintOrderLabel}</ThemedText>
               </View>
               <View style={[styles.hintDivider, { backgroundColor: theme.border }]} />
               <View style={styles.hintItem}>
@@ -559,10 +709,40 @@ const styles = StyleSheet.create({
   },
   progressCard: {
     paddingHorizontal: Spacing.three,
-    paddingVertical: 12,
+    paddingVertical: 10,
     borderRadius: 16,
     borderWidth: StyleSheet.hairlineWidth,
     gap: 8,
+  },
+  modeSegmentedControl: {
+    flexDirection: 'row',
+    padding: 3,
+    borderRadius: 11,
+    gap: 4,
+  },
+  modeSegmentButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 8,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'transparent',
+  },
+  modeSegmentButtonActive: {
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06,
+    shadowRadius: 3,
+    elevation: 1,
+  },
+  modeSegmentBadge: {
+    fontSize: 12,
+    lineHeight: 16,
+    letterSpacing: 0.4,
   },
   progressLabelRow: {
     flexDirection: 'row',
@@ -611,7 +791,7 @@ const styles = StyleSheet.create({
   tilePressed: {
     transform: [{ scale: 0.94 }],
   },
-  tileText: {
+  tileNumberText: {
     fontVariant: ['tabular-nums'],
   },
   tileWrongText: {
