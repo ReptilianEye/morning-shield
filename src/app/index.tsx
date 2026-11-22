@@ -2,10 +2,10 @@ import { Link } from 'expo-router';
 import { Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { SymbolView } from 'expo-symbols';
-import type { SFSymbol } from 'sf-symbols-typescript';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import { CHALLENGE_CATALOG } from '@/constants/riddles';
 import { MaxContentWidth, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import {
@@ -14,76 +14,8 @@ import {
   getLocalDateKey,
   getSolveTimeStats,
   isWithinWakeWindow,
-  RiddleId,
   useMorningStore,
 } from '@/store/useMorningStore';
-
-interface ChallengeItem {
-  id: RiddleId;
-  href:
-    | '/riddle/ice-cat'
-    | '/riddle/gyro-maze'
-    | '/riddle/color-match'
-    | '/riddle/sequence-tap';
-  title: string;
-  description: string;
-  tags: string[];
-  symbol: SFSymbol;
-  fallbackEmoji: string;
-  tint: string;
-  badgeBg: string;
-}
-
-const CHALLENGES: ChallengeItem[] = [
-  {
-    id: 'ice-cat',
-    href: '/riddle/ice-cat',
-    title: 'Break the Ice Cat',
-    description:
-      'Crack the frozen barrier and warm up the cat by shaking your phone and tapping glowing weak spots.',
-    tags: ['Shake & Tap', 'Quick'],
-    symbol: 'snowflake',
-    fallbackEmoji: '🧊',
-    tint: '#0284C7',
-    badgeBg: 'rgba(14, 165, 233, 0.14)',
-  },
-  {
-    id: 'gyro-maze',
-    href: '/riddle/gyro-maze',
-    title: 'Gyro Maze',
-    description:
-      'Tilt your phone gently to roll the orb through the maze and guide it into the goal zone.',
-    tags: ['Tilt & Balance', 'Focus'],
-    symbol: 'circle.grid.cross.fill',
-    fallbackEmoji: '🌀',
-    tint: '#7C3AED',
-    badgeBg: 'rgba(124, 58, 237, 0.14)',
-  },
-  {
-    id: 'color-match',
-    href: '/riddle/color-match',
-    title: 'Color Match',
-    description:
-      'Pick a target shade and find something around your room that matches using your camera.',
-    tags: ['Camera Hunt', 'Active'],
-    symbol: 'camera.viewfinder',
-    fallbackEmoji: '🎨',
-    tint: '#D97706',
-    badgeBg: 'rgba(245, 158, 11, 0.16)',
-  },
-  {
-    id: 'sequence-tap',
-    href: '/riddle/sequence-tap',
-    title: 'Sequence Tap',
-    description:
-      'Clear the scattered number tiles by tapping all 20 in ascending or descending order.',
-    tags: ['Focus & Tap', 'Quick'],
-    symbol: 'number.square.fill',
-    fallbackEmoji: '🔢',
-    tint: '#0D9488',
-    badgeBg: 'rgba(13, 148, 136, 0.14)',
-  },
-];
 
 export default function LandingScreen() {
   const theme = useTheme();
@@ -147,26 +79,49 @@ export default function LandingScreen() {
               </ThemedText>
             </View>
 
-            <Link href="/settings" asChild>
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel="Open settings"
-                style={({ pressed }) => [styles.pressableRadius, pressed && styles.pressed]}>
-                <View
-                  style={[
-                    styles.settingsButton,
-                    styles.cardShadow,
-                    { backgroundColor: theme.card, borderColor: theme.border },
-                  ]}>
-                  <SymbolView
-                    name={{ ios: 'gearshape.fill' }}
-                    size={18}
-                    tintColor={theme.text}
-                    fallback={<ThemedText>⚙️</ThemedText>}
-                  />
-                </View>
-              </Pressable>
-            </Link>
+            <View style={styles.headerActions}>
+              <Link href="/history" asChild>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Open solve history"
+                  style={({ pressed }) => [styles.pressableRadius, pressed && styles.pressed]}>
+                  <View
+                    style={[
+                      styles.settingsButton,
+                      styles.cardShadow,
+                      { backgroundColor: theme.card, borderColor: theme.border },
+                    ]}>
+                    <SymbolView
+                      name={{ ios: 'calendar' }}
+                      size={18}
+                      tintColor={theme.text}
+                      fallback={<ThemedText>📅</ThemedText>}
+                    />
+                  </View>
+                </Pressable>
+              </Link>
+
+              <Link href="/settings" asChild>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Open settings"
+                  style={({ pressed }) => [styles.pressableRadius, pressed && styles.pressed]}>
+                  <View
+                    style={[
+                      styles.settingsButton,
+                      styles.cardShadow,
+                      { backgroundColor: theme.card, borderColor: theme.border },
+                    ]}>
+                    <SymbolView
+                      name={{ ios: 'gearshape.fill' }}
+                      size={18}
+                      tintColor={theme.text}
+                      fallback={<ThemedText>⚙️</ThemedText>}
+                    />
+                  </View>
+                </Pressable>
+              </Link>
+            </View>
           </View>
 
           {/* Morning Status Card */}
@@ -203,15 +158,35 @@ export default function LandingScreen() {
           </View>
 
           {/* Challenges Section */}
-          <View style={styles.sectionHeader}>
-            <ThemedText type="subtitle">Morning Challenges</ThemedText>
-            <ThemedText type="small" themeColor="textSecondary">
-              Choose a quick activity to get moving
-            </ThemedText>
+          <View style={styles.sectionHeaderRow}>
+            <View style={styles.sectionHeader}>
+              <ThemedText type="subtitle">Morning Challenges</ThemedText>
+              <ThemedText type="small" themeColor="textSecondary">
+                Choose a quick activity to get moving
+              </ThemedText>
+            </View>
+            <Link href="/history" asChild>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="View solve history calendar"
+                style={({ pressed }) => [styles.pressableRadius, pressed && styles.pressed]}>
+                <View style={[styles.historyLinkPill, { backgroundColor: theme.accentSoft }]}>
+                  <SymbolView
+                    name={{ ios: 'calendar' }}
+                    size={13}
+                    tintColor={theme.accent}
+                    fallback={<ThemedText type="small">📅</ThemedText>}
+                  />
+                  <ThemedText type="smallBold" style={{ color: theme.accent }}>
+                    History
+                  </ThemedText>
+                </View>
+              </Pressable>
+            </Link>
           </View>
 
           <View style={styles.challengeList}>
-            {CHALLENGES.map((challenge) => {
+            {CHALLENGE_CATALOG.map((challenge) => {
               const { bestMs } = getSolveTimeStats(solveTimes, challenge.id, todayKey);
               return (
                 <Link key={challenge.href} href={challenge.href} asChild>
@@ -350,6 +325,11 @@ const styles = StyleSheet.create({
     flex: 1,
     gap: 2,
   },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.two,
+  },
   pressableRadius: {
     borderRadius: 22,
   },
@@ -406,9 +386,24 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     borderRadius: 999,
   },
-  sectionHeader: {
+  sectionHeaderRow: {
     marginTop: 4,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: Spacing.two,
+  },
+  sectionHeader: {
+    flex: 1,
     gap: 2,
+  },
+  historyLinkPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 11,
+    paddingVertical: 6,
+    borderRadius: 999,
   },
   challengeList: {
     gap: 12,

@@ -13,6 +13,33 @@ export interface SolveTimeStats {
   previousMs: number | null;
 }
 
+export interface SolveHistoryEntry {
+  dateKey: string;
+  durationMs: number;
+}
+
+export interface RiddleHistorySummary {
+  totalDays: number;
+  bestMs: number | null;
+  bestDateKey: string | null;
+  averageMs: number | null;
+  latestMs: number | null;
+  latestDateKey: string | null;
+  entries: SolveHistoryEntry[];
+}
+
+export interface CalendarDayCell {
+  dateKey: string;
+  dayNumber: number;
+  inCurrentMonth: boolean;
+}
+
+export interface MonthSolveStats {
+  solvedCount: number;
+  monthBestMs: number | null;
+  monthAverageMs: number | null;
+}
+
 export interface WakeWindow {
   startHour: number;
   startMinute: number;
@@ -97,6 +124,150 @@ export function formatDurationMs(ms: number): string {
   const minutes = Math.floor(totalSeconds / 60);
   const seconds = totalSeconds % 60;
   return `${minutes}m ${String(seconds).padStart(2, '0')}s`;
+}
+
+/**
+ * Formats a duration into a compact label suited for tight calendar day cells.
+ */
+export function formatCompactDurationMs(ms: number): string {
+  if (!Number.isFinite(ms) || ms < 0) return '0.0s';
+  const totalTenths = Math.round(ms / 100);
+  if (totalTenths < 600) {
+    return `${(totalTenths / 10).toFixed(1)}s`;
+  }
+  const totalSeconds = Math.round(ms / 1000);
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return `${minutes}:${String(seconds).padStart(2, '0')}`;
+}
+
+/**
+ * Parses a local YYYY-MM-DD key into a Date at local noon to avoid DST boundary shifts.
+ */
+export function parseLocalDateKey(dateKey: string): Date | null {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dateKey);
+  if (!match) return null;
+  const year = Number(match[1]);
+  const monthIndex = Number(match[2]) - 1;
+  const day = Number(match[3]);
+  const date = new Date(year, monthIndex, day, 12, 0, 0, 0);
+  if (
+    date.getFullYear() !== year ||
+    date.getMonth() !== monthIndex ||
+    date.getDate() !== day
+  ) {
+    return null;
+  }
+  return date;
+}
+
+/**
+ * Formats a YYYY-MM-DD key into a readable local date string (e.g. "Sun, Nov 22, 2026").
+ */
+export function formatDateKeyLabel(dateKey: string, includeWeekday: boolean = true): string {
+  const date = parseLocalDateKey(dateKey);
+  if (!date) return dateKey;
+  return date.toLocaleDateString('en-US', {
+    weekday: includeWeekday ? 'short' : undefined,
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  });
+}
+
+function isValidDuration(value: unknown): value is number {
+  return typeof value === 'number' && Number.isFinite(value) && value > 0;
+}
+
+/**
+ * Summarizes all recorded daily solve times for a specific riddle (newest first).
+ */
+export function getRiddleHistorySummary(
+  solveTimes: DailySolveTimes,
+  riddleId: RiddleId
+): RiddleHistorySummary {
+  const entries: SolveHistoryEntry[] = [];
+  let bestMs: number | null = null;
+  let bestDateKey: string | null = null;
+  let totalDuration = 0;
+
+  for (const [dateKey, dayMap] of Object.entries(solveTimes)) {
+    const durationMs = dayMap?.[riddleId];
+    if (!isValidDuration(durationMs)) continue;
+    entries.push({ dateKey, durationMs });
+    totalDuration += durationMs;
+    if (bestMs === null || durationMs < bestMs) {
+      bestMs = durationMs;
+      bestDateKey = dateKey;
+    }
+  }
+
+  entries.sort((a, b) => b.dateKey.localeCompare(a.dateKey));
+  const latest = entries[0] ?? null;
+
+  return {
+    totalDays: entries.length,
+    bestMs,
+    bestDateKey,
+    averageMs: entries.length > 0 ? Math.round(totalDuration / entries.length) : null,
+    latestMs: latest?.durationMs ?? null,
+    latestDateKey: latest?.dateKey ?? null,
+    entries,
+  };
+}
+
+/**
+ * Builds a Monday-first calendar grid covering all days of the given year and 0-based month.
+ */
+export function getMonthCalendarDays(year: number, monthIndex: number): CalendarDayCell[] {
+  const firstOfMonth = new Date(year, monthIndex, 1, 12, 0, 0, 0);
+  const daysInMonth = new Date(year, monthIndex + 1, 0, 12, 0, 0, 0).getDate();
+  const leadingEmptyDays = (firstOfMonth.getDay() + 6) % 7;
+  const totalCells = Math.ceil((leadingEmptyDays + daysInMonth) / 7) * 7;
+
+  const cells: CalendarDayCell[] = [];
+  for (let i = 0; i < totalCells; i++) {
+    const dayOffset = i - leadingEmptyDays + 1;
+    const cellDate = new Date(year, monthIndex, dayOffset, 12, 0, 0, 0);
+    cells.push({
+      dateKey: getLocalDateKey(cellDate),
+      dayNumber: cellDate.getDate(),
+      inCurrentMonth: dayOffset >= 1 && dayOffset <= daysInMonth,
+    });
+  }
+  return cells;
+}
+
+/**
+ * Computes monthly aggregate statistics for a single riddle in the specified year/month.
+ */
+export function getMonthStatsForRiddle(
+  solveTimes: DailySolveTimes,
+  riddleId: RiddleId,
+  year: number,
+  monthIndex: number
+): MonthSolveStats {
+  const monthPrefix = `${year}-${String(monthIndex + 1).padStart(2, '0')}-`;
+  let solvedCount = 0;
+  let monthBestMs: number | null = null;
+  let totalDuration = 0;
+
+  for (const [dateKey, dayMap] of Object.entries(solveTimes)) {
+    if (!dateKey.startsWith(monthPrefix)) continue;
+    const durationMs = dayMap?.[riddleId];
+    if (!isValidDuration(durationMs)) continue;
+    solvedCount += 1;
+    totalDuration += durationMs;
+    if (monthBestMs === null || durationMs < monthBestMs) {
+      monthBestMs = durationMs;
+    }
+  }
+
+  return {
+    solvedCount,
+    monthBestMs,
+    monthAverageMs: solvedCount > 0 ? Math.round(totalDuration / solvedCount) : null,
+  };
 }
 
 /**
