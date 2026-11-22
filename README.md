@@ -29,7 +29,7 @@ Instead of passively dismissing an alarm and opening social media in bed, users 
 | **Graphics & Physics** | `@shopify/react-native-skia` (`2.14.0`), `matter-js` (`^0.20.0`) |
 | **Animations & Gestures** | `react-native-reanimated` (`4.7.1`), `react-native-gesture-handler` (`~3.3.0`) |
 | **State & Storage** | `zustand` (`^5.0.15`), `react-native-mmkv` (`^4.3.2`) + `react-native-nitro-modules` |
-| **Notifications & Agent DevTools** | `expo-notifications`, `@swmansion/argent` (`^0.29.0`) |
+| **Notifications & Agent DevTools** | `expo-notifications`, `@swmansion/argent` (`^0.34.0`) |
 
 ---
 
