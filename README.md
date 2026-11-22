@@ -14,7 +14,9 @@ Instead of passively dismissing an alarm and opening social media in bed, users 
    - **🎨 Riddle 3: Color Match** - Pick one of 2 colors and use your phone's camera to hunt down object with closest matching color. 
 2. **Morning Ritual Scheduling (Wake Window)**
    - Configure a daily morning window (e.g., `06:30–08:30`). During this window, MorningShield automatically locks into riddle mode until solved for the day (`YYYY-MM-DD`), persisted synchronously via `react-native-mmkv` + `zustand`.
-3. **Distraction App Blocker (Android Optional Enhancement)**
+3. **Daily Solve-Time History & Calendar**
+   - Tracks fastest completion time per challenge per day (`solveTimes` stored locally in MMKV), shows completion speed comparisons against personal bests (`SolveTimeBadge`), surfaces `Best` badges on Home cards, and includes an interactive monthly **Solve History** calendar (`src/app/history.tsx`) for browsing each challenge's history.
+4. **Distraction App Blocker (Android Optional Enhancement)**
    - Uses `SYSTEM_ALERT_WINDOW` and `PACKAGE_USAGE_STATS` on Android to detect launches of distracting apps (Instagram, TikTok, YouTube, etc.) during an active, unsolved morning window and bring the riddle screen to the foreground.
    - On iOS, runs in standalone morning-ritual mode (schedule, local notifications, hardware riddles) without requiring paid `FamilyControls` entitlements.
 
@@ -38,26 +40,33 @@ Instead of passively dismissing an alarm and opening social media in bed, users 
 ```text
 src/
 ├── app/
-│   ├── _layout.tsx             # Root Stack layout + GestureHandlerRootView + morning lock guard
-│   ├── index.tsx               # Home dashboard (lock status, active window, challenge cards)
+│   ├── _layout.tsx             # Root Stack layout + morning lock guard + notification deep-linking
+│   ├── index.tsx               # Home dashboard (lock status, challenge cards, best-time pills)
+│   ├── history.tsx             # Interactive Solve History calendar modal per challenge
 │   ├── settings.tsx            # Persisted preferences modal (window, challenge, reminders, apps)
 │   └── riddle/
 │       ├── _layout.tsx         # Fullscreen modal layout (gestureEnabled: false, Android back guard)
 │       ├── ice-cat.tsx         # Riddle 1: Break the Ice Cat
 │       ├── gyro-maze.tsx       # Riddle 2: Gyroscope Maze (placeholder — #3)
-│       └── color-match.tsx     # Riddle 3: Color Match
+│       ├── color-match.tsx     # Riddle 3: Color Match
+│       └── sequence-tap.tsx    # Riddle 4: Sequence Tap
 ├── components/
 │   ├── IceCatIllustration.tsx  # Skia vector cat with frozen/thawing/freed states
 │   ├── IceOverlayCanvas.tsx    # Skia crack & frost rendering layer
+│   ├── SolveHistoryCalendar.tsx # Monthly Monday–Sunday solve-time calendar grid
+│   ├── SolveTimeBadge.tsx      # Completion speed & personal-best comparison badge
 │   ├── TimePickerModal.tsx     # Custom 24h hour/minute picker modal
 │   └── color-match-camera.tsx  # Expo Camera pixel sampler & permission UI
+├── constants/
+│   └── riddles.ts              # Shared challenge catalog (routes, icons, colors, metadata)
 ├── hooks/
 │   ├── use-color-calculations.ts # Complementary HSL generator & similarity scorer
-│   └── useShakeDetector.ts     # Accelerometer magnitude hook
+│   ├── useShakeDetector.ts     # Accelerometer magnitude hook
+│   └── useSolveTimer.ts        # Monotonic challenge completion timer hook
 ├── store/
-│   └── useMorningStore.ts      # Zustand + MMKV store (with in-memory fallback)
+│   └── useMorningStore.ts      # Zustand + MMKV store + solve-time history selectors
 └── utils/
-    └── notifications.ts        # Daily wake-up notification scheduler
+    └── notifications.ts        # Daily wake-up notification scheduler & response matcher
 ```
 
 ---
