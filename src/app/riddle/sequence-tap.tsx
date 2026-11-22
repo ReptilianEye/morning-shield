@@ -11,11 +11,18 @@ import { router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { SymbolView } from 'expo-symbols';
 
+import { SolveTimeBadge } from '@/components/SolveTimeBadge';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { MaxContentWidth, Spacing } from '@/constants/theme';
+import { useSolveTimer } from '@/hooks/useSolveTimer';
 import { useTheme } from '@/hooks/use-theme';
-import { getLocalDateKey, isWithinWakeWindow, useMorningStore } from '@/store/useMorningStore';
+import {
+  getLocalDateKey,
+  getSolveTimeStats,
+  isWithinWakeWindow,
+  useMorningStore,
+} from '@/store/useMorningStore';
 
 const TOTAL_TILES = 20;
 const TILE_SIZE = 50;
@@ -153,9 +160,12 @@ export default function SequenceTapRiddleScreen() {
   const shieldEnabled = useMorningStore((state) => state.shieldEnabled);
   const wakeWindow = useMorningStore((state) => state.wakeWindow);
   const lastSolvedDate = useMorningStore((state) => state.lastSolvedDate);
+  const solveTimes = useMorningStore((state) => state.solveTimes);
 
   const isLockedMode =
     shieldEnabled && isWithinWakeWindow(wakeWindow) && lastSolvedDate !== getLocalDateKey();
+  const { solveResult, completeSolve, resetTimer } = useSolveTimer('sequence-tap');
+  const solveStats = useMemo(() => getSolveTimeStats(solveTimes, 'sequence-tap'), [solveTimes]);
 
   const [direction, setDirection] = useState<SequenceDirection>(() =>
     Math.random() < 0.5 ? 'asc' : 'desc'
@@ -183,12 +193,6 @@ export default function SequenceTapRiddleScreen() {
   }, [clearedCount]);
   const isCompleted = clearedCount >= TOTAL_TILES;
   const expectedValue = sequence[clearedCount];
-
-  useEffect(() => {
-    if (isCompleted) {
-      markRiddleSolved();
-    }
-  }, [isCompleted, markRiddleSolved]);
 
   useEffect(() => {
     return () => {
@@ -234,6 +238,8 @@ export default function SequenceTapRiddleScreen() {
         if (nextCount >= TOTAL_TILES) {
           Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
           setStatusMessage('All numbers cleared! Your morning shield is ready to unlock.');
+          markRiddleSolved();
+          completeSolve();
         } else {
           Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
           setStatusMessage(null);
@@ -257,7 +263,7 @@ export default function SequenceTapRiddleScreen() {
         }, 380);
       }
     },
-    [clearedCount, direction, expectedValue, isCompleted]
+    [clearedCount, completeSolve, direction, expectedValue, isCompleted, markRiddleSolved]
   );
 
   const handleReset = useCallback(() => {
@@ -266,12 +272,13 @@ export default function SequenceTapRiddleScreen() {
     setClearedValues([]);
     setWrongTileValue(null);
     setStatusMessage(null);
+    resetTimer();
 
     const { width, height } = arenaSizeRef.current;
     if (width > 0 && height > 0) {
       setTiles(generateShuffledTiles(width, height));
     }
-  }, []);
+  }, [resetTimer]);
 
   const defaultSubtitle =
     direction === 'asc'
@@ -448,6 +455,13 @@ export default function SequenceTapRiddleScreen() {
                 You cleared all {TOTAL_TILES} numbers in{' '}
                 {direction === 'asc' ? 'ascending' : 'descending'} order.
               </ThemedText>
+              {solveResult && (
+                <SolveTimeBadge
+                  elapsedMs={solveResult.elapsedMs}
+                  isNewBest={solveResult.isNewBest}
+                  stats={solveStats}
+                />
+              )}
             </View>
           )}
         </View>

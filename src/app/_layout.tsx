@@ -175,6 +175,14 @@ export default function RootLayout() {
             }}
           />
           <Stack.Screen
+            name="history"
+            options={{
+              title: 'Solve History',
+              headerShown: false,
+              presentation: 'modal',
+            }}
+          />
+          <Stack.Screen
             name="riddle"
             options={{
               headerShown: false,

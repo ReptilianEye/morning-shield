@@ -2,7 +2,43 @@ import { create } from 'zustand';
 import { createJSONStorage, persist, StateStorage } from 'zustand/middleware';
 import { createMMKV } from 'react-native-mmkv';
 
-export type RiddleChoice = 'ice-cat' | 'gyro-maze' | 'color-match' | 'sequence-tap' | 'random';
+export type RiddleId = 'ice-cat' | 'gyro-maze' | 'color-match' | 'sequence-tap';
+export type RiddleChoice = RiddleId | 'random';
+
+export type DailySolveTimes = Record<string, Partial<Record<RiddleId, number>>>;
+
+export interface SolveTimeStats {
+  todayMs: number | null;
+  bestMs: number | null;
+  previousMs: number | null;
+}
+
+export interface SolveHistoryEntry {
+  dateKey: string;
+  durationMs: number;
+}
+
+export interface RiddleHistorySummary {
+  totalDays: number;
+  bestMs: number | null;
+  bestDateKey: string | null;
+  averageMs: number | null;
+  latestMs: number | null;
+  latestDateKey: string | null;
+  entries: SolveHistoryEntry[];
+}
+
+export interface CalendarDayCell {
+  dateKey: string;
+  dayNumber: number;
+  inCurrentMonth: boolean;
+}
+
+export interface MonthSolveStats {
+  solvedCount: number;
+  monthBestMs: number | null;
+  monthAverageMs: number | null;
+}
 
 export interface WakeWindow {
   startHour: number;
@@ -75,6 +111,233 @@ export function formatWakeWindow(window: WakeWindow): string {
   return `${formatTime24(window.startHour, window.startMinute)} – ${formatTime24(window.endHour, window.endMinute)}`;
 }
 
+/**
+ * Formats a solve duration in milliseconds for user-facing display (e.g. "12.4s" or "1m 08s").
+ */
+export function formatDurationMs(ms: number): string {
+  if (!Number.isFinite(ms) || ms < 0) return '0.0s';
+  const totalTenths = Math.round(ms / 100);
+  if (totalTenths < 600) {
+    return `${(totalTenths / 10).toFixed(1)}s`;
+  }
+  const totalSeconds = Math.round(ms / 1000);
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return `${minutes}m ${String(seconds).padStart(2, '0')}s`;
+}
+
+/**
+ * Formats a duration into a compact label suited for tight calendar day cells.
+ */
+export function formatCompactDurationMs(ms: number): string {
+  if (!Number.isFinite(ms) || ms < 0) return '0.0s';
+  const totalTenths = Math.round(ms / 100);
+  if (totalTenths < 600) {
+    return `${(totalTenths / 10).toFixed(1)}s`;
+  }
+  const totalSeconds = Math.round(ms / 1000);
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return `${minutes}:${String(seconds).padStart(2, '0')}`;
+}
+
+/**
+ * Parses a local YYYY-MM-DD key into a Date at local noon to avoid DST boundary shifts.
+ */
+export function parseLocalDateKey(dateKey: string): Date | null {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dateKey);
+  if (!match) return null;
+  const year = Number(match[1]);
+  const monthIndex = Number(match[2]) - 1;
+  const day = Number(match[3]);
+  const date = new Date(year, monthIndex, day, 12, 0, 0, 0);
+  if (
+    date.getFullYear() !== year ||
+    date.getMonth() !== monthIndex ||
+    date.getDate() !== day
+  ) {
+    return null;
+  }
+  return date;
+}
+
+/**
+ * Formats a YYYY-MM-DD key into a readable local date string (e.g. "Sun, Nov 22, 2026").
+ */
+export function formatDateKeyLabel(dateKey: string, includeWeekday: boolean = true): string {
+  const date = parseLocalDateKey(dateKey);
+  if (!date) return dateKey;
+  return date.toLocaleDateString('en-US', {
+    weekday: includeWeekday ? 'short' : undefined,
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  });
+}
+
+function isValidDuration(value: unknown): value is number {
+  return typeof value === 'number' && Number.isFinite(value) && value > 0;
+}
+
+/**
+ * Summarizes all recorded daily solve times for a specific riddle (newest first).
+ */
+export function getRiddleHistorySummary(
+  solveTimes: DailySolveTimes,
+  riddleId: RiddleId
+): RiddleHistorySummary {
+  const entries: SolveHistoryEntry[] = [];
+  let bestMs: number | null = null;
+  let bestDateKey: string | null = null;
+  let totalDuration = 0;
+
+  for (const [dateKey, dayMap] of Object.entries(solveTimes)) {
+    const durationMs = dayMap?.[riddleId];
+    if (!isValidDuration(durationMs)) continue;
+    entries.push({ dateKey, durationMs });
+    totalDuration += durationMs;
+    if (bestMs === null || durationMs < bestMs) {
+      bestMs = durationMs;
+      bestDateKey = dateKey;
+    }
+  }
+
+  entries.sort((a, b) => b.dateKey.localeCompare(a.dateKey));
+  const latest = entries[0] ?? null;
+
+  return {
+    totalDays: entries.length,
+    bestMs,
+    bestDateKey,
+    averageMs: entries.length > 0 ? Math.round(totalDuration / entries.length) : null,
+    latestMs: latest?.durationMs ?? null,
+    latestDateKey: latest?.dateKey ?? null,
+    entries,
+  };
+}
+
+/**
+ * Builds a Monday-first calendar grid covering all days of the given year and 0-based month.
+ */
+export function getMonthCalendarDays(year: number, monthIndex: number): CalendarDayCell[] {
+  const firstOfMonth = new Date(year, monthIndex, 1, 12, 0, 0, 0);
+  const daysInMonth = new Date(year, monthIndex + 1, 0, 12, 0, 0, 0).getDate();
+  const leadingEmptyDays = (firstOfMonth.getDay() + 6) % 7;
+  const totalCells = Math.ceil((leadingEmptyDays + daysInMonth) / 7) * 7;
+
+  const cells: CalendarDayCell[] = [];
+  for (let i = 0; i < totalCells; i++) {
+    const dayOffset = i - leadingEmptyDays + 1;
+    const cellDate = new Date(year, monthIndex, dayOffset, 12, 0, 0, 0);
+    cells.push({
+      dateKey: getLocalDateKey(cellDate),
+      dayNumber: cellDate.getDate(),
+      inCurrentMonth: dayOffset >= 1 && dayOffset <= daysInMonth,
+    });
+  }
+  return cells;
+}
+
+/**
+ * Computes monthly aggregate statistics for a single riddle in the specified year/month.
+ */
+export function getMonthStatsForRiddle(
+  solveTimes: DailySolveTimes,
+  riddleId: RiddleId,
+  year: number,
+  monthIndex: number
+): MonthSolveStats {
+  const monthPrefix = `${year}-${String(monthIndex + 1).padStart(2, '0')}-`;
+  let solvedCount = 0;
+  let monthBestMs: number | null = null;
+  let totalDuration = 0;
+
+  for (const [dateKey, dayMap] of Object.entries(solveTimes)) {
+    if (!dateKey.startsWith(monthPrefix)) continue;
+    const durationMs = dayMap?.[riddleId];
+    if (!isValidDuration(durationMs)) continue;
+    solvedCount += 1;
+    totalDuration += durationMs;
+    if (monthBestMs === null || durationMs < monthBestMs) {
+      monthBestMs = durationMs;
+    }
+  }
+
+  return {
+    solvedCount,
+    monthBestMs,
+    monthAverageMs: solvedCount > 0 ? Math.round(totalDuration / solvedCount) : null,
+  };
+}
+
+/**
+ * Computes today's fastest time, overall personal best, and the most recent prior day's time.
+ */
+export function getSolveTimeStats(
+  solveTimes: DailySolveTimes,
+  riddleId: RiddleId,
+  currentDateKey: string = getLocalDateKey()
+): SolveTimeStats {
+  const rawToday = solveTimes[currentDateKey]?.[riddleId];
+  const todayMs =
+    typeof rawToday === 'number' && Number.isFinite(rawToday) && rawToday > 0 ? rawToday : null;
+
+  let bestMs: number | null = null;
+  let previousDateKey: string | null = null;
+  let previousMs: number | null = null;
+
+  for (const [dateKey, dayMap] of Object.entries(solveTimes)) {
+    const duration = dayMap?.[riddleId];
+    if (typeof duration !== 'number' || !Number.isFinite(duration) || duration <= 0) {
+      continue;
+    }
+    if (bestMs === null || duration < bestMs) {
+      bestMs = duration;
+    }
+    if (dateKey < currentDateKey && (previousDateKey === null || dateKey > previousDateKey)) {
+      previousDateKey = dateKey;
+      previousMs = duration;
+    }
+  }
+
+  return { todayMs, bestMs, previousMs };
+}
+
+/**
+ * Builds a concise user-facing summary comparing a solve duration against personal records.
+ */
+export function formatSolveSummary(
+  elapsedMs: number,
+  stats: SolveTimeStats,
+  isNewBest: boolean
+): string {
+  const solvedLabel = `Solved in ${formatDurationMs(elapsedMs)}`;
+  const fasterDeltaMs =
+    stats.previousMs !== null && stats.previousMs - elapsedMs >= 100
+      ? stats.previousMs - elapsedMs
+      : null;
+
+  if (isNewBest) {
+    return fasterDeltaMs !== null
+      ? `${solvedLabel} • Personal Best! (${formatDurationMs(fasterDeltaMs)} faster)`
+      : `${solvedLabel} • Personal Best!`;
+  }
+
+  if (fasterDeltaMs !== null) {
+    const fasterText = `${formatDurationMs(fasterDeltaMs)} faster than last time`;
+    if (stats.bestMs !== null && stats.bestMs < elapsedMs) {
+      return `${solvedLabel} • ${fasterText} • Best: ${formatDurationMs(stats.bestMs)}`;
+    }
+    return `${solvedLabel} • ${fasterText}`;
+  }
+
+  if (stats.bestMs !== null) {
+    return `${solvedLabel} • Best: ${formatDurationMs(stats.bestMs)}`;
+  }
+
+  return solvedLabel;
+}
+
 export type ActiveRiddleRoute =
   | '/riddle/ice-cat'
   | '/riddle/color-match'
@@ -129,6 +392,7 @@ export interface MorningState {
   notificationsEnabled: boolean;
   blockedApps: string[];
   lastSolvedDate: string | null;
+  solveTimes: DailySolveTimes;
 
   setShieldEnabled: (enabled: boolean) => void;
   setWakeWindow: (window: WakeWindow) => void;
@@ -138,6 +402,7 @@ export interface MorningState {
   setNotificationsEnabled: (enabled: boolean) => void;
   toggleBlockedApp: (appId: string) => void;
   markRiddleSolved: () => void;
+  recordSolveTime: (riddleId: RiddleId, durationMs: number) => void;
   resetTodayCompletion: () => void;
   isMorningLocked: (now?: Date) => boolean;
 }
@@ -151,6 +416,7 @@ export const useMorningStore = create<MorningState>()(
       notificationsEnabled: true,
       blockedApps: ['instagram', 'tiktok', 'youtube'],
       lastSolvedDate: null,
+      solveTimes: {},
 
       setShieldEnabled: (shieldEnabled) => set({ shieldEnabled }),
       setWakeWindow: (wakeWindow) => set({ wakeWindow }),
@@ -196,6 +462,28 @@ export const useMorningStore = create<MorningState>()(
           };
         }),
       markRiddleSolved: () => set({ lastSolvedDate: getLocalDateKey() }),
+      recordSolveTime: (riddleId, durationMs) => {
+        if (!Number.isFinite(durationMs) || durationMs <= 0) return;
+        const roundedMs = Math.max(1, Math.round(durationMs));
+        const dateKey = getLocalDateKey();
+        set((state) => {
+          const dayTimes = state.solveTimes[dateKey] ?? {};
+          const existingMs = dayTimes[riddleId];
+          const nextMs =
+            typeof existingMs === 'number' && Number.isFinite(existingMs) && existingMs > 0
+              ? Math.min(existingMs, roundedMs)
+              : roundedMs;
+          return {
+            solveTimes: {
+              ...state.solveTimes,
+              [dateKey]: {
+                ...dayTimes,
+                [riddleId]: nextMs,
+              },
+            },
+          };
+        });
+      },
       resetTodayCompletion: () => set({ lastSolvedDate: null }),
       isMorningLocked: (now = new Date()) => {
         const state = get();
@@ -214,6 +502,7 @@ export const useMorningStore = create<MorningState>()(
         notificationsEnabled: state.notificationsEnabled,
         blockedApps: state.blockedApps,
         lastSolvedDate: state.lastSolvedDate,
+        solveTimes: state.solveTimes,
       }),
     }
   )

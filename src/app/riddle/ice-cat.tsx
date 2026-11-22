@@ -19,9 +19,16 @@ import { ThemedView } from '@/components/themed-view';
 import { MaxContentWidth, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { useShakeDetector } from '@/hooks/useShakeDetector';
+import { useSolveTimer } from '@/hooks/useSolveTimer';
 import { IceOverlayCanvas, ImpactPoint } from '@/components/IceOverlayCanvas';
 import { IceCatIllustration } from '@/components/IceCatIllustration';
-import { getLocalDateKey, isWithinWakeWindow, useMorningStore } from '@/store/useMorningStore';
+import { SolveTimeBadge } from '@/components/SolveTimeBadge';
+import {
+  getLocalDateKey,
+  getSolveTimeStats,
+  isWithinWakeWindow,
+  useMorningStore,
+} from '@/store/useMorningStore';
 
 interface WeakSpot {
   id: string;
@@ -81,8 +88,12 @@ export default function IceCatRiddleScreen() {
   const shieldEnabled = useMorningStore((state) => state.shieldEnabled);
   const wakeWindow = useMorningStore((state) => state.wakeWindow);
   const lastSolvedDate = useMorningStore((state) => state.lastSolvedDate);
+  const solveTimes = useMorningStore((state) => state.solveTimes);
   const isLockedMode =
     shieldEnabled && isWithinWakeWindow(wakeWindow) && lastSolvedDate !== getLocalDateKey();
+  const { solveResult, completeSolve, resetTimer } = useSolveTimer('ice-cat');
+  const solveStats = useMemo(() => getSolveTimeStats(solveTimes, 'ice-cat'), [solveTimes]);
+
   const [iceHealth, setIceHealth] = useState(100);
   const [impactPoints, setImpactPoints] = useState<ImpactPoint[]>([]);
   const [weakSpots, setWeakSpots] = useState<WeakSpot[]>(INITIAL_WEAK_SPOTS);
@@ -95,10 +106,12 @@ export default function IceCatRiddleScreen() {
   const isBroken = iceHealth <= 0;
 
   useEffect(() => {
-    if (isBroken) {
-      markRiddleSolved();
-    }
-  }, [isBroken, markRiddleSolved]);
+    if (!isBroken) return;
+
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+    markRiddleSolved();
+    completeSolve();
+  }, [completeSolve, isBroken, markRiddleSolved]);
 
   const triggerJolt = useCallback(
     (intensity: number) => {
@@ -125,15 +138,10 @@ export default function IceCatRiddleScreen() {
 
   const applyDamage = useCallback((amount: number, reason: string) => {
     setIceHealth((prevHealth) => {
-      const nextHealth = Math.max(0, prevHealth - amount);
-      if (nextHealth === 0 && prevHealth > 0) {
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
-        setStatusMessage('You freed the cat! Morning shield is ready to unlock.');
-      } else {
-        setStatusMessage(reason);
-      }
-      return nextHealth;
+      if (prevHealth <= 0) return prevHealth;
+      return Math.max(0, prevHealth - amount);
     });
+    setStatusMessage(reason);
   }, []);
 
   const handleShake = useCallback(() => {
@@ -249,7 +257,8 @@ export default function IceCatRiddleScreen() {
     setImpactPoints([]);
     setWeakSpots(INITIAL_WEAK_SPOTS);
     setStatusMessage('Shake your phone or tap the glowing weak spots to crack the ice.');
-  }, []);
+    resetTimer();
+  }, [resetTimer]);
 
   const progressColor = isBroken
     ? theme.success
@@ -327,7 +336,7 @@ export default function IceCatRiddleScreen() {
         <View style={styles.header}>
           <ThemedText type="title">Break the Ice Cat</ThemedText>
           <ThemedText type="small" themeColor="textSecondary">
-            {statusMessage}
+            {isBroken ? 'You freed the cat! Morning shield is ready to unlock.' : statusMessage}
           </ThemedText>
         </View>
 
@@ -382,6 +391,14 @@ export default function IceCatRiddleScreen() {
                     ? 'Great job breaking the morning chill.'
                     : 'Keep cracking the frost to warm them up.'}
                 </ThemedText>
+                {isBroken && solveResult && (
+                  <SolveTimeBadge
+                    elapsedMs={solveResult.elapsedMs}
+                    isNewBest={solveResult.isNewBest}
+                    stats={solveStats}
+                    darkSurface
+                  />
+                )}
               </View>
 
               {/* Pulsing Weak-Spot Targets */}
