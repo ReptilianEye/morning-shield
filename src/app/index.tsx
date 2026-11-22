@@ -9,14 +9,17 @@ import { ThemedView } from '@/components/themed-view';
 import { MaxContentWidth, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import {
+  formatDurationMs,
   formatWakeWindow,
   getLocalDateKey,
+  getSolveTimeStats,
   isWithinWakeWindow,
+  RiddleId,
   useMorningStore,
 } from '@/store/useMorningStore';
 
 interface ChallengeItem {
-  id: 'ice-cat' | 'gyro-maze' | 'color-match' | 'sequence-tap';
+  id: RiddleId;
   href:
     | '/riddle/ice-cat'
     | '/riddle/gyro-maze'
@@ -84,8 +87,10 @@ const CHALLENGES: ChallengeItem[] = [
 
 export default function LandingScreen() {
   const theme = useTheme();
-  const { shieldEnabled, wakeWindow, selectedRiddle, lastSolvedDate } = useMorningStore();
-  const solvedToday = lastSolvedDate === getLocalDateKey();
+  const { shieldEnabled, wakeWindow, selectedRiddle, lastSolvedDate, solveTimes } =
+    useMorningStore();
+  const todayKey = getLocalDateKey();
+  const solvedToday = lastSolvedDate === todayKey;
   const inWindow = isWithinWakeWindow(wakeWindow);
   const isLocked = shieldEnabled && inWindow && !solvedToday;
 
@@ -206,88 +211,112 @@ export default function LandingScreen() {
           </View>
 
           <View style={styles.challengeList}>
-            {CHALLENGES.map((challenge) => (
-              <Link key={challenge.href} href={challenge.href} asChild>
-                <Pressable
-                  accessibilityRole="button"
-                  style={({ pressed }) => [styles.cardPressable, pressed && styles.pressed]}>
-                  <View
-                    style={[
-                      styles.riddleCard,
-                      styles.cardShadow,
-                      { backgroundColor: theme.card, borderColor: theme.border },
-                    ]}>
-                    <View style={[styles.iconBadge, { backgroundColor: challenge.badgeBg }]}>
-                      <SymbolView
-                        name={{ ios: challenge.symbol }}
-                        size={22}
-                        tintColor={challenge.tint}
-                        fallback={
-                          <ThemedText style={styles.fallbackEmoji}>
-                            {challenge.fallbackEmoji}
-                          </ThemedText>
-                        }
-                      />
-                    </View>
-
-                    <View style={styles.cardBody}>
-                      <View style={styles.cardTitleRow}>
-                        <ThemedText type="bigger" style={styles.cardTitle}>
-                          {challenge.title}
-                        </ThemedText>
-                        <View
-                          style={[
-                            styles.chevronCircle,
-                            { backgroundColor: theme.backgroundSelected },
-                          ]}>
-                          <SymbolView
-                            name={{ ios: 'chevron.right' }}
-                            size={12}
-                            tintColor={theme.textSecondary}
-                            fallback={
-                              <ThemedText type="smallBold" themeColor="textSecondary">
-                                ›
-                              </ThemedText>
-                            }
-                          />
-                        </View>
+            {CHALLENGES.map((challenge) => {
+              const { bestMs } = getSolveTimeStats(solveTimes, challenge.id, todayKey);
+              return (
+                <Link key={challenge.href} href={challenge.href} asChild>
+                  <Pressable
+                    accessibilityRole="button"
+                    style={({ pressed }) => [styles.cardPressable, pressed && styles.pressed]}>
+                    <View
+                      style={[
+                        styles.riddleCard,
+                        styles.cardShadow,
+                        { backgroundColor: theme.card, borderColor: theme.border },
+                      ]}>
+                      <View style={[styles.iconBadge, { backgroundColor: challenge.badgeBg }]}>
+                        <SymbolView
+                          name={{ ios: challenge.symbol }}
+                          size={22}
+                          tintColor={challenge.tint}
+                          fallback={
+                            <ThemedText style={styles.fallbackEmoji}>
+                              {challenge.fallbackEmoji}
+                            </ThemedText>
+                          }
+                        />
                       </View>
 
-                      <ThemedText type="small" themeColor="textSecondary">
-                        {challenge.description}
-                      </ThemedText>
-
-                      <View style={styles.tagRow}>
-                        {selectedRiddle === challenge.id && (
-                          <View style={[styles.tagPill, { backgroundColor: theme.accentSoft }]}>
-                            <ThemedText
-                              type="small"
-                              style={[styles.tagText, { color: theme.accent }]}>
-                              Preferred
-                            </ThemedText>
-                          </View>
-                        )}
-                        {challenge.tags.map((tag) => (
+                      <View style={styles.cardBody}>
+                        <View style={styles.cardTitleRow}>
+                          <ThemedText type="bigger" style={styles.cardTitle}>
+                            {challenge.title}
+                          </ThemedText>
                           <View
-                            key={tag}
                             style={[
-                              styles.tagPill,
+                              styles.chevronCircle,
                               { backgroundColor: theme.backgroundSelected },
                             ]}>
-                            <ThemedText
-                              type="small"
-                              themeColor="textSecondary"
-                              style={styles.tagText}>
-                              {tag}
-                            </ThemedText>
+                            <SymbolView
+                              name={{ ios: 'chevron.right' }}
+                              size={12}
+                              tintColor={theme.textSecondary}
+                              fallback={
+                                <ThemedText type="smallBold" themeColor="textSecondary">
+                                  ›
+                                </ThemedText>
+                              }
+                            />
                           </View>
-                        ))}
+                        </View>
+
+                        <ThemedText type="small" themeColor="textSecondary">
+                          {challenge.description}
+                        </ThemedText>
+
+                        <View style={styles.tagRow}>
+                          {selectedRiddle === challenge.id && (
+                            <View style={[styles.tagPill, { backgroundColor: theme.accentSoft }]}>
+                              <ThemedText
+                                type="small"
+                                style={[styles.tagText, { color: theme.accent }]}>
+                                Preferred
+                              </ThemedText>
+                            </View>
+                          )}
+                          {bestMs !== null && (
+                            <View style={[styles.bestPill, { backgroundColor: theme.successSoft }]}>
+                              <SymbolView
+                                name={{ ios: 'timer' }}
+                                size={11}
+                                tintColor={theme.success}
+                                fallback={
+                                  <ThemedText
+                                    type="small"
+                                    style={[styles.tagText, { color: theme.success }]}>
+                                    ⏱
+                                  </ThemedText>
+                                }
+                              />
+                              <ThemedText
+                                type="small"
+                                style={[styles.tagText, { color: theme.success }]}>
+                                Best {formatDurationMs(bestMs)}
+                              </ThemedText>
+                            </View>
+                          )}
+                          {challenge.tags.map((tag) => (
+                            <View
+                              key={tag}
+                              style={[
+                                styles.tagPill,
+                                { backgroundColor: theme.backgroundSelected },
+                              ]}>
+                              <ThemedText
+                                type="small"
+                                themeColor="textSecondary"
+                                style={styles.tagText}>
+                                {tag}
+                              </ThemedText>
+                            </View>
+                          ))}
+                        </View>
                       </View>
                     </View>
-                  </View>
-                </Pressable>
-              </Link>
-            ))}
+                  </Pressable>
+                </Link>
+              );
+            })}
           </View>
         </ScrollView>
       </SafeAreaView>
@@ -434,6 +463,14 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   tagPill: {
+    paddingHorizontal: 9,
+    paddingVertical: 3,
+    borderRadius: 999,
+  },
+  bestPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
     paddingHorizontal: 9,
     paddingVertical: 3,
     borderRadius: 999,

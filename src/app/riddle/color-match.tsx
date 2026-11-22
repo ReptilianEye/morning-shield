@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import Animated, { ZoomIn } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -8,13 +8,20 @@ import { SymbolView } from 'expo-symbols';
 import { ConfettiMethods, PIConfetti } from 'react-native-fast-confetti';
 
 import CameraScreen from '@/components/color-match-camera';
+import { SolveTimeBadge } from '@/components/SolveTimeBadge';
 import ThemedPressable from '@/components/themed-pressable';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { MaxContentWidth, Spacing } from '@/constants/theme';
 import { useColorCalculations } from '@/hooks/use-color-calculations';
+import { useSolveTimer } from '@/hooks/useSolveTimer';
 import { useTheme } from '@/hooks/use-theme';
-import { getLocalDateKey, isWithinWakeWindow, useMorningStore } from '@/store/useMorningStore';
+import {
+  getLocalDateKey,
+  getSolveTimeStats,
+  isWithinWakeWindow,
+  useMorningStore,
+} from '@/store/useMorningStore';
 
 const COLOR_SIMILARITY_THRESHOLD = 80;
 const W_HUE = 0.6;
@@ -27,8 +34,11 @@ export default function ColorMatchRiddleScreen() {
   const shieldEnabled = useMorningStore((state) => state.shieldEnabled);
   const wakeWindow = useMorningStore((state) => state.wakeWindow);
   const lastSolvedDate = useMorningStore((state) => state.lastSolvedDate);
+  const solveTimes = useMorningStore((state) => state.solveTimes);
   const isLockedMode =
     shieldEnabled && isWithinWakeWindow(wakeWindow) && lastSolvedDate !== getLocalDateKey();
+  const { solveResult, completeSolve, resetTimer } = useSolveTimer('color-match');
+  const solveStats = useMemo(() => getSolveTimeStats(solveTimes, 'color-match'), [solveTimes]);
   const { getRandomColors, compareHexAndHsl } = useColorCalculations();
   const confettiRef = useRef<ConfettiMethods>(null);
 
@@ -62,10 +72,12 @@ export default function ColorMatchRiddleScreen() {
     setHuntOver(false);
     setFoundColor('#CBD5E1');
     setColorSimilarity(0);
-  }, []);
+    resetTimer();
+  }, [resetTimer]);
 
   const onSetColor = useCallback(
     (value: string) => {
+      if (huntOver) return;
       const similarity =
         (1 - compareHexAndHsl(value, pickedColorValue, W_HUE, W_LIGHT, W_SAT)) * 100;
       setFoundColor(value);
@@ -73,11 +85,12 @@ export default function ColorMatchRiddleScreen() {
       if (similarity >= COLOR_SIMILARITY_THRESHOLD) {
         setHuntOver(true);
         markRiddleSolved();
+        completeSolve();
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
         confettiRef.current?.restart();
       }
     },
-    [compareHexAndHsl, markRiddleSolved, pickedColorValue]
+    [compareHexAndHsl, completeSolve, huntOver, markRiddleSolved, pickedColorValue]
   );
 
   const roundedMatch = Math.max(0, Math.min(100, Math.round(colorSimilarity)));
@@ -247,6 +260,13 @@ export default function ColorMatchRiddleScreen() {
                     <ThemedText type="small" themeColor="textSecondary" style={styles.centerText}>
                       You matched {roundedMatch}% of your target color. Have a great morning!
                     </ThemedText>
+                    {solveResult && (
+                      <SolveTimeBadge
+                        elapsedMs={solveResult.elapsedMs}
+                        isNewBest={solveResult.isNewBest}
+                        stats={solveStats}
+                      />
+                    )}
                   </View>
                 </Animated.View>
               )}

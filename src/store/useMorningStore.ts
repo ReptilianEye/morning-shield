@@ -2,7 +2,16 @@ import { create } from 'zustand';
 import { createJSONStorage, persist, StateStorage } from 'zustand/middleware';
 import { createMMKV } from 'react-native-mmkv';
 
-export type RiddleChoice = 'ice-cat' | 'gyro-maze' | 'color-match' | 'sequence-tap' | 'random';
+export type RiddleId = 'ice-cat' | 'gyro-maze' | 'color-match' | 'sequence-tap';
+export type RiddleChoice = RiddleId | 'random';
+
+export type DailySolveTimes = Record<string, Partial<Record<RiddleId, number>>>;
+
+export interface SolveTimeStats {
+  todayMs: number | null;
+  bestMs: number | null;
+  previousMs: number | null;
+}
 
 export interface WakeWindow {
   startHour: number;
@@ -75,6 +84,89 @@ export function formatWakeWindow(window: WakeWindow): string {
   return `${formatTime24(window.startHour, window.startMinute)} – ${formatTime24(window.endHour, window.endMinute)}`;
 }
 
+/**
+ * Formats a solve duration in milliseconds for user-facing display (e.g. "12.4s" or "1m 08s").
+ */
+export function formatDurationMs(ms: number): string {
+  if (!Number.isFinite(ms) || ms < 0) return '0.0s';
+  const totalTenths = Math.round(ms / 100);
+  if (totalTenths < 600) {
+    return `${(totalTenths / 10).toFixed(1)}s`;
+  }
+  const totalSeconds = Math.round(ms / 1000);
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return `${minutes}m ${String(seconds).padStart(2, '0')}s`;
+}
+
+/**
+ * Computes today's fastest time, overall personal best, and the most recent prior day's time.
+ */
+export function getSolveTimeStats(
+  solveTimes: DailySolveTimes,
+  riddleId: RiddleId,
+  currentDateKey: string = getLocalDateKey()
+): SolveTimeStats {
+  const rawToday = solveTimes[currentDateKey]?.[riddleId];
+  const todayMs =
+    typeof rawToday === 'number' && Number.isFinite(rawToday) && rawToday > 0 ? rawToday : null;
+
+  let bestMs: number | null = null;
+  let previousDateKey: string | null = null;
+  let previousMs: number | null = null;
+
+  for (const [dateKey, dayMap] of Object.entries(solveTimes)) {
+    const duration = dayMap?.[riddleId];
+    if (typeof duration !== 'number' || !Number.isFinite(duration) || duration <= 0) {
+      continue;
+    }
+    if (bestMs === null || duration < bestMs) {
+      bestMs = duration;
+    }
+    if (dateKey < currentDateKey && (previousDateKey === null || dateKey > previousDateKey)) {
+      previousDateKey = dateKey;
+      previousMs = duration;
+    }
+  }
+
+  return { todayMs, bestMs, previousMs };
+}
+
+/**
+ * Builds a concise user-facing summary comparing a solve duration against personal records.
+ */
+export function formatSolveSummary(
+  elapsedMs: number,
+  stats: SolveTimeStats,
+  isNewBest: boolean
+): string {
+  const solvedLabel = `Solved in ${formatDurationMs(elapsedMs)}`;
+  const fasterDeltaMs =
+    stats.previousMs !== null && stats.previousMs - elapsedMs >= 100
+      ? stats.previousMs - elapsedMs
+      : null;
+
+  if (isNewBest) {
+    return fasterDeltaMs !== null
+      ? `${solvedLabel} • Personal Best! (${formatDurationMs(fasterDeltaMs)} faster)`
+      : `${solvedLabel} • Personal Best!`;
+  }
+
+  if (fasterDeltaMs !== null) {
+    const fasterText = `${formatDurationMs(fasterDeltaMs)} faster than last time`;
+    if (stats.bestMs !== null && stats.bestMs < elapsedMs) {
+      return `${solvedLabel} • ${fasterText} • Best: ${formatDurationMs(stats.bestMs)}`;
+    }
+    return `${solvedLabel} • ${fasterText}`;
+  }
+
+  if (stats.bestMs !== null) {
+    return `${solvedLabel} • Best: ${formatDurationMs(stats.bestMs)}`;
+  }
+
+  return solvedLabel;
+}
+
 export type ActiveRiddleRoute =
   | '/riddle/ice-cat'
   | '/riddle/color-match'
@@ -129,6 +221,7 @@ export interface MorningState {
   notificationsEnabled: boolean;
   blockedApps: string[];
   lastSolvedDate: string | null;
+  solveTimes: DailySolveTimes;
 
   setShieldEnabled: (enabled: boolean) => void;
   setWakeWindow: (window: WakeWindow) => void;
@@ -138,6 +231,7 @@ export interface MorningState {
   setNotificationsEnabled: (enabled: boolean) => void;
   toggleBlockedApp: (appId: string) => void;
   markRiddleSolved: () => void;
+  recordSolveTime: (riddleId: RiddleId, durationMs: number) => void;
   resetTodayCompletion: () => void;
   isMorningLocked: (now?: Date) => boolean;
 }
@@ -151,6 +245,7 @@ export const useMorningStore = create<MorningState>()(
       notificationsEnabled: true,
       blockedApps: ['instagram', 'tiktok', 'youtube'],
       lastSolvedDate: null,
+      solveTimes: {},
 
       setShieldEnabled: (shieldEnabled) => set({ shieldEnabled }),
       setWakeWindow: (wakeWindow) => set({ wakeWindow }),
@@ -196,6 +291,28 @@ export const useMorningStore = create<MorningState>()(
           };
         }),
       markRiddleSolved: () => set({ lastSolvedDate: getLocalDateKey() }),
+      recordSolveTime: (riddleId, durationMs) => {
+        if (!Number.isFinite(durationMs) || durationMs <= 0) return;
+        const roundedMs = Math.max(1, Math.round(durationMs));
+        const dateKey = getLocalDateKey();
+        set((state) => {
+          const dayTimes = state.solveTimes[dateKey] ?? {};
+          const existingMs = dayTimes[riddleId];
+          const nextMs =
+            typeof existingMs === 'number' && Number.isFinite(existingMs) && existingMs > 0
+              ? Math.min(existingMs, roundedMs)
+              : roundedMs;
+          return {
+            solveTimes: {
+              ...state.solveTimes,
+              [dateKey]: {
+                ...dayTimes,
+                [riddleId]: nextMs,
+              },
+            },
+          };
+        });
+      },
       resetTodayCompletion: () => set({ lastSolvedDate: null }),
       isMorningLocked: (now = new Date()) => {
         const state = get();
@@ -214,6 +331,7 @@ export const useMorningStore = create<MorningState>()(
         notificationsEnabled: state.notificationsEnabled,
         blockedApps: state.blockedApps,
         lastSolvedDate: state.lastSolvedDate,
+        solveTimes: state.solveTimes,
       }),
     }
   )
