@@ -49,6 +49,13 @@ Select your connected iPhone when prompted (or pass its name/UDID via `--device 
 - **7-day limit (free Apple ID):** Apps signed with a free personal Apple ID expire after **7 days** and just need a quick re-run from Xcode/`run:ios` to renew. A paid Apple Developer account (\$99/year) extends signing to 1 year.
 - Local notifications (`enableRemoteNotifications: false` in `app.config.ts`), camera, and motion sensors all work offline in this Release build.
 
+### Testing Notifications on Your Physical iPhone
+MorningShield schedules **on-device local daily reminders** via `UNUserNotificationCenter` (`expo-notifications`), so notifications work on a physical iPhone even with a free Personal Apple ID (remote APNs pushes are intentionally disabled via `enableRemoteNotifications: false` so Personal Team signing works without a paid Apple Developer membership):
+1. Connect your unlocked iPhone via USB (with **Developer Mode** turned on) and run a Release or Development build (`npx expo run:ios --configuration Release --device`).
+2. Open **MorningShield → Settings**, toggle **Wake-Up Reminders** OFF → ON to trigger the system notification permission prompt, and tap **Allow** (Settings only requests permission interactively on toggle, not silently at app launch).
+3. If you already solved a challenge earlier today, tap **Reset Today's Completion** in Settings (deep-linking on notification tap only launches a challenge when today isn't solved yet).
+4. Temporarily set **Starts at** to 1–2 minutes from now using the minute-by-minute time picker, tap **Done**, and background or lock the iPhone — the local notification banner fires at that minute, and tapping it opens the active challenge directly.
+
 ---
 
 ## Android (Physical Phone via USB)
