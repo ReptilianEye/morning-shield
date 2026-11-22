@@ -9,9 +9,10 @@ This document tracks the core features of **MorningShield**, their technical des
 - [x] **Task 2: State Management (`src/store/useMorningStore.ts`)** — Zustand + `react-native-mmkv` store with safe in-memory fallback.
 - [x] **Task 3: Riddle 1 — Ice Cat (`src/app/riddle/ice-cat.tsx`)** — Accelerometer shake detector (`> 2.2g`), `Gesture.Tap()` pulsing weak spots, Skia `IceCatIllustration`, and `IceOverlayCanvas` procedural cracks/frost.
 - [x] **Task 3.5: Riddle 3 — Color Match (`src/app/riddle/color-match.tsx`)** — Complementary random color picker, live camera sampling (`ColorMatchCamera`), HSL similarity matching (`>= 80%`), and confetti celebration.
+- [x] **Task 3.6: Riddle 4 — Sequence Tap (`src/app/riddle/sequence-tap.tsx`)** — Scattered 20-tile board supporting Numbers (`1–20` / `20–1`, [#9](https://github.com/ReptilianEye/morning-shield/issues/9)) and Letters (`A–T` / `T–A`, [#14](https://github.com/ReptilianEye/morning-shield/issues/14)) with segmented mode switch and error shake feedback.
 - [ ] **Task 4: Riddle 2 — Gyro Maze (`src/app/riddle/gyro-maze.tsx`)** — `matter-js` 2D physics world driven by `useTiltGravity` at 60 FPS, rendered on Skia canvas ([#3](https://github.com/ReptilianEye/morning-shield/issues/3)).
 - [x] **Task 5: Navigation Guard, Settings, Notifications, Stats & Dashboard** — Automatic redirect when `isMorningLocked()` is active (`src/app/_layout.tsx`), Android back-button blocker (`src/app/riddle/_layout.tsx`), interactive Settings modal with custom minute-precision `TimePickerModal` (`src/app/settings.tsx`), daily wake-up notification scheduling (`src/utils/notifications.ts`) + tap deep-linking ([#10](https://github.com/ReptilianEye/morning-shield/issues/10)), local daily solve-time tracking & **Solve History** calendar ([#12](https://github.com/ReptilianEye/morning-shield/issues/12)), and updated Home dashboard (`src/app/index.tsx`).
-- [ ] **Task 6: Android App Blocker & Follow-up Enhancements** — Android `UsageStats` / overlay launcher interception and Sequence Tap riddle ([#9](https://github.com/ReptilianEye/morning-shield/issues/9)).
+- [ ] **Task 6: Android App Blocker** — Android `UsageStats` / overlay launcher interception.
 
 ---
 
@@ -51,6 +52,10 @@ This document tracks the core features of **MorningShield**, their technical des
 - **Camera & Matching:**
   - Generates two complementary HSL target shades (`useColorCalculations`) and prompts the user to pick one.
   - Samples center-reticle pixels via `expo-camera` (`ColorMatchCamera`) and scores HSL similarity (`>= 80%` completes the challenge, triggers confetti, and marks today solved).
+
+### 4.5. Riddle 4: Sequence Tap (`src/app/riddle/sequence-tap.tsx`)
+- **Modes & Directions:** Randomly chooses **Numbers (`1 → 20` / `20 → 1`)** or **Letters (`A → T` / `T → A`)** on start and Reset, with a live segmented toggle (`Numbers mode` / `Letters mode`) to switch anytime.
+- **Board & Feedback:** Places 20 non-overlapping `50×50` tiles inside jittered grid cells, fades cleared tiles out with haptics + Reanimated scale animations, flashes wrong taps in red without resetting progress, and records completion duration via `useSolveTimer`.
 
 ### 5. Navigation Guard, Dashboard, Notifications & Settings
 - **Root Guard (`src/app/_layout.tsx` & `src/app/riddle/_layout.tsx`):** Wraps app in `GestureHandlerRootView`, checks `isMorningLocked()` on launch, foreground resume, and 15s ticks, redirects from `/` to `resolveActiveRiddleRoute(selectedRiddle)`, shows a `Locked` indicator instead of `< Back`, and blocks Android hardware back navigation inside `/riddle/*`.

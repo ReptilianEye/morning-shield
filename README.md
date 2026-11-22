@@ -11,7 +11,8 @@ Instead of passively dismissing an alarm and opening social media in bed, users 
 1. **Conscious Wake-Up Riddles (Core Hardware Challenges)**
    - **🧊 Riddle 1: Break the AI Cat from Ice (`ice-cat`)** — Shake the phone ($> 2.2\text{g}$ total acceleration via `expo-sensors`) and tap weak-spot markers (`Gesture.Tap()`) to shatter a frosted `@shopify/react-native-skia` ice layer with procedural cracks and heavy haptic feedback.
    - **🌀 Riddle 2: Gyroscope / Tilt Maze (`gyro-maze`)** — Tilt the phone in 2D space to control `matter-js` world gravity at 60 FPS, guiding a ball through maze barriers to the goal sensor rendered on a Skia canvas.
-   - **🎨 Riddle 3: Color Match** - Pick one of 2 colors and use your phone's camera to hunt down object with closest matching color. 
+   - **🎨 Riddle 3: Color Match (`color-match`)** — Pick one of 2 complementary target shades and use the camera to find a matching object nearby.
+   - **🔢🔤 Riddle 4: Sequence Tap (`sequence-tap`)** — Clear 20 scattered non-overlapping tiles in **Numbers (`1–20` / `20–1`)** or **Letters (`A–T` / `T–A`)** mode with a segmented mode toggle and solve-time tracking.
 2. **Morning Ritual Scheduling (Wake Window)**
    - Configure a daily morning window (e.g., `06:30–08:30`). During this window, MorningShield automatically locks into riddle mode until solved for the day (`YYYY-MM-DD`), persisted synchronously via `react-native-mmkv` + `zustand`.
 3. **Daily Solve-Time History & Calendar**
@@ -49,7 +50,7 @@ src/
 │       ├── ice-cat.tsx         # Riddle 1: Break the Ice Cat
 │       ├── gyro-maze.tsx       # Riddle 2: Gyroscope Maze (placeholder — #3)
 │       ├── color-match.tsx     # Riddle 3: Color Match
-│       └── sequence-tap.tsx    # Riddle 4: Sequence Tap
+│       └── sequence-tap.tsx    # Riddle 4: Sequence Tap (Numbers 1–20 & Letters A–T)
 ├── components/
 │   ├── IceCatIllustration.tsx  # Skia vector cat with frozen/thawing/freed states
 │   ├── IceOverlayCanvas.tsx    # Skia crack & frost rendering layer

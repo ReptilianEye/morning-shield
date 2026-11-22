@@ -61,7 +61,7 @@ export const CHALLENGE_CATALOG: ChallengeMetadata[] = [
     title: 'Sequence Tap',
     shortTitle: 'Sequence Tap',
     description:
-      'Clear the scattered number tiles by tapping all 20 in ascending or descending order.',
+      'Clear the scattered number or letter tiles by tapping all 20 in order.',
     tags: ['Focus & Tap', 'Quick'],
     symbol: 'number.square.fill',
     fallbackEmoji: '🔢',

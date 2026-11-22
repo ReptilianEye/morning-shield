@@ -71,7 +71,7 @@ const CHALLENGE_OPTIONS: ChallengeOption[] = [
   {
     id: 'sequence-tap',
     title: 'Sequence Tap',
-    subtitle: 'Tap shuffled numbers in ascending or descending order',
+    subtitle: 'Tap shuffled numbers or letters in order',
     symbol: 'number.square.fill',
     fallbackEmoji: '🔢',
     tint: '#0D9488',
